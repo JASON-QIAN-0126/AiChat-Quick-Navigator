@@ -46,7 +46,7 @@ async function loadSettings(): Promise<void> {
     
     renderCustomUrls(customUrls);
   } catch (error) {
-    console.error('加载设置失败:', error);
+    // console.error('加载设置失败:', error);
   }
 }
 
@@ -143,7 +143,7 @@ async function saveSetting(key: string, value: any): Promise<void> {
     await chrome.storage.sync.set({ [key]: value });
     showSaveStatus();
   } catch (error) {
-    console.error('保存设置失败:', error);
+    // console.error('保存设置失败:', error);
   }
 }
 

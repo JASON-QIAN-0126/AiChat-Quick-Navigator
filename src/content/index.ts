@@ -219,7 +219,7 @@ function clearUI(): void {
  */
 function getConversationId(): string {
   const pathname = window.location.pathname;
-  console.log('[LLM-Nav] Checking URL for ID:', pathname);
+  // console.log('[LLM-Nav] Checking URL for ID:', pathname);
   
   // 尝试从 URL 匹配 /c/UUID (ChatGPT)
   const matchC = pathname.match(/\/c\/([a-zA-Z0-9-]+)/);
@@ -231,7 +231,7 @@ function getConversationId(): string {
   // 示例: /a/chat/s/8f0b40c6-a114-434e-adce-73b2aa5ccf73
   const matchS = pathname.match(/\/s\/([a-zA-Z0-9-]+)/);
   if (matchS && matchS[1]) {
-    console.log('[LLM-Nav] Found DeepSeek ID:', matchS[1]);
+    // console.log('[LLM-Nav] Found DeepSeek ID:', matchS[1]);
     return matchS[1];
   }
   
@@ -254,7 +254,7 @@ function initTimelineNavigator(): void {
   
   // 如果不存在实例，则创建
   if (!timelineNavigator) {
-    timelineNavigator = new RightSideTimelineNavigator();
+  timelineNavigator = new RightSideTimelineNavigator();
     
     // 注册节点点击事件 (只需注册一次)
     timelineNavigator.onNodeClick((itemIndex: number) => {
@@ -269,7 +269,7 @@ function initTimelineNavigator(): void {
 
   // 2. 更新/设置主题
   const theme = (cachedSettings?.ui_theme as ThemeMode) || 'auto';
-  timelineNavigator.setTheme(theme);
+    timelineNavigator.setTheme(theme);
   
   // 3. 传入所有 Prompt-Answer 条目 (init 方法内部会处理增量更新)
   const items = indexManager.getItems();
@@ -317,7 +317,7 @@ async function init() {
     try {
     // 从存储中加载自定义 URL
     const settings = await getSettings();
-    console.log('[LLM-Nav] Settings loaded:', settings);
+    // console.log('[LLM-Nav] Settings loaded:', settings);
     
     // 关键检查：如果在 await 期间被外部再次调用了 clearUI/init，则终止
     if (executionId !== currentInitId) return;
@@ -326,7 +326,7 @@ async function init() {
     
     // 获取当前页面适配的站点适配器
     const adapter = getActiveAdapter(window.location, customUrls);
-    console.log('[LLM-Nav] Active adapter:', adapter ? adapter.name : 'None', window.location.href);
+    // console.log('[LLM-Nav] Active adapter:', adapter ? adapter.name : 'None', window.location.href);
     
     if (!adapter) {
       // 只有当我是最新的 init 时，才重置标志
@@ -346,7 +346,7 @@ async function init() {
         isEnabled = settings.enable_deepseek !== false;
     }
 
-    console.log('[LLM-Nav] Adapter enabled:', isEnabled);
+    // console.log('[LLM-Nav] Adapter enabled:', isEnabled);
 
     if (!isEnabled) {
       if (executionId === currentInitId) isInitializing = false;
@@ -358,7 +358,7 @@ async function init() {
   // 尝试查找更精确的根容器（通常是 <main>）以减少不必要的扫描和监听
     const mainElement = document.querySelector('main');
     const rootElement = mainElement || document.body;
-    console.log('[LLM-Nav] Root element:', rootElement);
+    // console.log('[LLM-Nav] Root element:', rootElement);
     
     // 初始化索引管理器
     indexManager = new AnswerIndexManager(adapter, rootElement);
@@ -369,7 +369,7 @@ async function init() {
     });
   
   const totalCount = indexManager.getTotalCount();
-  console.log('[LLM-Nav] Initial total count:', totalCount);
+  // console.log('[LLM-Nav] Initial total count:', totalCount);
   
   // 如果扫描到问题，立即锁定列表（不再自动刷新）
   if (totalCount > 0) {

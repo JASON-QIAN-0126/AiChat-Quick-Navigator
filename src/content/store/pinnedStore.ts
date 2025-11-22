@@ -22,7 +22,7 @@ export const PinnedStore = {
       try {
         chrome.storage.local.get(key, (result) => {
           if (chrome.runtime.lastError) {
-            console.error('Failed to load pinned state:', chrome.runtime.lastError);
+            // console.error('Failed to load pinned state:', chrome.runtime.lastError);
             resolve(new Set());
             return;
           }
@@ -31,7 +31,7 @@ export const PinnedStore = {
           resolve(new Set(pinnedList));
         });
       } catch (e) {
-        console.error('Error loading pinned state:', e);
+        // console.error('Error loading pinned state:', e);
         resolve(new Set());
       }
     });
@@ -72,12 +72,12 @@ export const PinnedStore = {
       try {
         chrome.storage.local.set({ [key]: pinnedList }, () => {
           if (chrome.runtime.lastError) {
-            console.error('Failed to save pinned state:', chrome.runtime.lastError);
+            // console.error('Failed to save pinned state:', chrome.runtime.lastError);
           }
           resolve();
         });
       } catch (e) {
-        console.error('Error saving pinned state:', e);
+        // console.error('Error saving pinned state:', e);
         resolve();
       }
     });

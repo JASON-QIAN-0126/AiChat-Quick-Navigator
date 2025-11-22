@@ -21,7 +21,7 @@ async function injectStyles(forceUpdate: boolean = false): Promise<void> {
       cachedThemeMode = (result.ui_theme as ThemeMode) || DEFAULT_THEME_MODE;
     }
   } catch (error) {
-    console.error('加载主题失败:', error);
+    // console.error('加载主题失败:', error);
     cachedThemeMode = DEFAULT_THEME_MODE;
   }
 

@@ -23,7 +23,7 @@ export class AnswerIndexManager {
   // 位置缓存，减少getBoundingClientRect调用
   private positionCache: Map<number, { top: number, bottom: number, timestamp: number }> = new Map();
   private readonly CACHE_VALIDITY_MS = 500; // 缓存有效期500ms
-  
+
   private intersectionObserver: IntersectionObserver | null = null;
   private onIndexChangeCallback: ((index: number) => void) | null = null;
 

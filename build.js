@@ -52,13 +52,13 @@ async function build() {
     if (isWatch) {
       const ctx = await esbuild.context(buildOptions);
       await ctx.watch();
-      console.log('👀 Watching for changes...');
+      // console.log('👀 Watching for changes...');
     } else {
       await esbuild.build(buildOptions);
-      console.log('✅ Build complete!');
+      // console.log('✅ Build complete!');
     }
   } catch (error) {
-    console.error('❌ Build failed:', error);
+    // console.error('❌ Build failed:', error);
     process.exit(1);
   }
 }

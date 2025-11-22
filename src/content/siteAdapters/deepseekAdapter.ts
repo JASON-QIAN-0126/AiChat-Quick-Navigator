@@ -11,7 +11,7 @@ export const deepseekAdapter: SiteAdapter = {
     // 暂时复用 chatgpt 的逻辑，后续根据 deepseek 实际 DOM 结构调整
     // 假设 deepseek 的 DOM 结构可能与 ChatGPT 类似或者有其特定结构
     // 这里先使用一个通用的选择器策略
-    console.log('[LLM-Nav] DeepSeek Adapter scanning...');
+    // console.log('[LLM-Nav] DeepSeek Adapter scanning...');
     
     const pairs: PromptAnswerPair[] = [];
     
@@ -28,7 +28,7 @@ export const deepseekAdapter: SiteAdapter = {
         '.chat-message-user'
     ].join(',')));
     
-    console.log('[LLM-Nav] DeepSeek primary search found:', userMessages.length);
+    // console.log('[LLM-Nav] DeepSeek primary search found:', userMessages.length);
 
     if (userMessages.length === 0) {
       // 如果找不到，尝试复用 ChatGPT 的选择器（很多 LLM 网站结构相似）
@@ -36,7 +36,7 @@ export const deepseekAdapter: SiteAdapter = {
       if (chatgptLike.length > 0) {
         userMessages.push(...Array.from(chatgptLike));
       }
-      console.log('[LLM-Nav] DeepSeek fallback search found:', chatgptLike.length);
+      // console.log('[LLM-Nav] DeepSeek fallback search found:', chatgptLike.length);
     }
 
     userMessages.forEach((msg, index) => {
