@@ -92,11 +92,11 @@ npm run build
 **结果**: ✅ 编译成功，无错误
 ```
 ✅ Build complete!
-  dist/content/index.js     41.0kb
+  dist/content/index.js     38.4kb  (优化前: 41.0kb, 减少6.3%)
   dist/options/index.js      5.1kb
   dist/background/index.js   743b 
   dist/popup/index.js          0b 
-⚡ Done in 6ms
+⚡ Done in 9ms
 ```
 
 ## 性能改进预估
@@ -105,12 +105,14 @@ npm run build
 - **滚动性能**: 提升约50-70%（位置缓存）
 - **CPU使用**: 减少ResizeObserver循环风险
 - **初始化稳定性**: 100%消除竞态条件
+- **打包体积**: 减少6.3%（删除废弃代码）
 
 ## 代码质量改进
 
 - **移除调试日志**: 70+处
+- **删除废弃代码**: 475行（findAllAnswers方法103行 + NavigatorUI.ts文件372行）
 - **添加安全机制**: 4处（互斥锁、标志位、缓存、清理逻辑）
-- **代码可维护性**: 显著提升（移除冗余日志后代码更清晰）
+- **代码可维护性**: 显著提升（移除冗余日志和废弃代码后更清晰）
 
 ## 未修复的项目（P2优先级，可选）
 
