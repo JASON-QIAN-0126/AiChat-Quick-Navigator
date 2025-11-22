@@ -67,6 +67,10 @@ export class RightSideTimelineNavigator {
     // 更新时间线主干颜色
     this.timelineBar.style.backgroundColor = this.currentTheme.timelineBarColor;
 
+    // 更新 Tooltip 样式
+    this.tooltip.style.backgroundColor = this.currentTheme.tooltipBackgroundColor;
+    this.tooltip.style.color = this.currentTheme.tooltipTextColor;
+
     // 刷新所有节点样式
     this.nodes.forEach((node, index) => {
       this.updateNodeStyle(node, index);
@@ -146,8 +150,8 @@ export class RightSideTimelineNavigator {
       position: 'fixed',
       maxWidth: '200px', // 缩窄宽度
       padding: '8px 12px',
-      backgroundColor: 'rgba(255, 255, 255, 0.95)', // 白底微透明
-      color: '#000', // 黑字
+      backgroundColor: this.currentTheme.tooltipBackgroundColor, // 使用主题色
+      color: this.currentTheme.tooltipTextColor, // 使用主题色
       fontSize: '12px',
       lineHeight: '1.4',
       borderRadius: '6px',
