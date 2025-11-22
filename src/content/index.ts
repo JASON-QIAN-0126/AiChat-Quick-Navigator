@@ -1,7 +1,34 @@
 // Content Script
 import { getActiveAdapter } from './siteAdapters/index';
+import { AnswerIndexManager } from './navigation/answerIndexManager';
 
 console.log('LLM Answer Navigator: Content script loaded');
+
+let indexManager: AnswerIndexManager | null = null;
+
+/**
+ * 防抖函数
+ */
+function debounce<T extends (...args: any[]) => void>(
+  func: T,
+  wait: number
+): (...args: Parameters<T>) => void {
+  let timeout: ReturnType<typeof setTimeout> | null = null;
+  return function(...args: Parameters<T>) {
+    if (timeout) clearTimeout(timeout);
+    timeout = setTimeout(() => func(...args), wait);
+  };
+}
+
+/**
+ * 处理滚动事件
+ */
+const handleScroll = debounce(() => {
+  if (indexManager) {
+    indexManager.updateCurrentIndexByScroll(window.scrollY);
+    console.log(`当前回答: ${indexManager.getCurrentIndex() + 1}/${indexManager.getTotalCount()}`);
+  }
+}, 200);
 
 /**
  * 初始化导航功能
@@ -17,19 +44,28 @@ function init() {
   
   console.log(`LLM Answer Navigator: ${adapter.name} 页面已检测到，准备初始化`);
   
-  // 查找所有 AI 回答节点
-  const answers = adapter.findAllAnswers(document);
-  console.log(`LLM Answer Navigator: 找到 ${answers.length} 个回答节点`);
+  // 初始化索引管理器
+  indexManager = new AnswerIndexManager(adapter, document);
   
-  if (answers.length > 0) {
-    console.log('第一个回答节点信息:', {
-      tagName: answers[0].tagName,
-      className: answers[0].className,
-      textPreview: answers[0].textContent?.substring(0, 100)
-    });
-  }
+  console.log(`LLM Answer Navigator: 初始化完成，共 ${indexManager.getTotalCount()} 个回答`);
   
-  // 后续将在这里添加核心逻辑
+  // 监听滚动事件
+  window.addEventListener('scroll', handleScroll, { passive: true });
+  
+  // 监听 DOM 变化，以便在新回答出现时刷新
+  const observer = new MutationObserver(debounce(() => {
+    if (indexManager && indexManager.needsRefresh()) {
+      console.log('检测到页面变化，刷新回答列表');
+      indexManager.refresh();
+    }
+  }, 1000));
+  
+  observer.observe(document.body, {
+    childList: true,
+    subtree: true
+  });
+  
+  // 后续将在这里添加 UI 和其他功能
 }
 
 // 页面加载完成后初始化
