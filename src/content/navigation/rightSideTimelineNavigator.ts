@@ -1,4 +1,5 @@
 import type { PromptAnswerItem } from './answerIndexManager';
+import { PinnedStore } from '../store/pinnedStore';
 
 /**
  * 右侧时间线导航器
@@ -14,6 +15,8 @@ export class RightSideTimelineNavigator {
   private tooltip: HTMLElement;
 
   private resizeObserver: ResizeObserver | null = null;
+  private conversationId: string | null = null;
+  private pinnedNodes: Set<string> = new Set();
 
   constructor() {
     this.container = this.createContainer();
@@ -28,6 +31,19 @@ export class RightSideTimelineNavigator {
       this.updateNodePositions();
     });
     this.resizeObserver.observe(this.container);
+  }
+
+  /**
+   * 设置当前对话 ID 并加载标记状态
+   */
+  async setConversationId(id: string) {
+    this.conversationId = id;
+    this.pinnedNodes = await PinnedStore.loadPinned(id);
+    // 重新应用样式
+    this.nodes.forEach((node, index) => {
+      this.updateNodeStyle(node, index);
+    });
+    console.log(`📌 Loaded pinned nodes for ${id}:`, this.pinnedNodes);
   }
 
   /**
@@ -150,6 +166,47 @@ export class RightSideTimelineNavigator {
   }
 
   /**
+   * 更新单个节点的样式（包含 Active 和 Pinned 状态）
+   */
+  private updateNodeStyle(node: HTMLElement, index: number) {
+    const isActive = index === this.activeIndex;
+    const isPinned = this.pinnedNodes.has(String(index));
+    
+    // 基础样式
+    node.style.transition = 'all 0.2s ease';
+    
+    if (isActive) {
+      // 激活状态
+      node.style.backgroundColor = '#4CAF50'; // 绿色
+      node.style.transform = 'translate(-50%, -50%) scale(1.4)';
+      node.style.zIndex = '10';
+      node.style.boxShadow = '0 0 10px rgba(76, 175, 80, 0.5)';
+      
+      // 如果也被标记了，加一个橙色外框
+      if (isPinned) {
+        node.style.border = '3px solid #FF9800'; // 橙色边框
+      } else {
+        node.style.border = '3px solid #fff'; // 白色边框
+      }
+    } else {
+      // 非激活状态
+      node.style.transform = 'translate(-50%, -50%) scale(1)';
+      node.style.zIndex = '1';
+      node.style.boxShadow = 'none';
+      
+      if (isPinned) {
+        // 标记状态
+        node.style.backgroundColor = '#FF9800'; // 橙色背景
+        node.style.border = '2px solid #fff';
+      } else {
+        // 普通状态
+        node.style.backgroundColor = '#888'; // 灰色背景
+        node.style.border = '2px solid #fff';
+      }
+    }
+  }
+
+  /**
    * 创建单个节点
    */
   private createNode(item: PromptAnswerItem, index: number): HTMLElement {
@@ -157,53 +214,93 @@ export class RightSideTimelineNavigator {
     node.className = 'timeline-node';
     node.dataset.index = String(index);
     
-    // 基础样式
+    // 初始样式
     Object.assign(node.style, {
       position: 'absolute',
       left: '50%',
       width: '12px',
       height: '12px',
       borderRadius: '50%',
-      backgroundColor: '#888',
-      border: '2px solid #fff',
       cursor: 'pointer',
       transform: 'translate(-50%, -50%)',
-      transition: 'all 0.2s ease',
       pointerEvents: 'auto',
-      zIndex: '1'
     });
+    
+    this.updateNodeStyle(node, index);
+
+    // 长按相关变量
+    let pressTimer: ReturnType<typeof setTimeout> | null = null;
+    let isLongPress = false;
+
+    const startPress = () => {
+      isLongPress = false;
+      pressTimer = setTimeout(async () => {
+        isLongPress = true;
+        console.log(`🖱️ Long press detected on node ${index}`);
+        
+        if (this.conversationId) {
+          const nodeId = String(index);
+          const newPinnedState = await PinnedStore.togglePinned(this.conversationId, nodeId);
+          
+          if (newPinnedState) {
+            this.pinnedNodes.add(nodeId);
+          } else {
+            this.pinnedNodes.delete(nodeId);
+          }
+          
+          this.updateNodeStyle(node, index);
+          
+          // 震动反馈 (如果支持)
+          if (navigator.vibrate) navigator.vibrate(50);
+        }
+      }, 500); // 500ms 长按阈值
+    };
+
+    const cancelPress = () => {
+      if (pressTimer) {
+        clearTimeout(pressTimer);
+        pressTimer = null;
+      }
+    };
+
+    // 鼠标/触摸事件处理
+    node.addEventListener('mousedown', startPress);
+    node.addEventListener('touchstart', startPress, { passive: true });
+
+    node.addEventListener('mouseup', cancelPress);
+    node.addEventListener('mouseleave', cancelPress);
+    node.addEventListener('touchend', cancelPress);
 
     // 鼠标悬浮效果 + 显示 tooltip
     node.addEventListener('mouseenter', () => {
-      const nodeIndex = parseInt(node.dataset.index || '0');
-      
-      // 样式变化
-      if (nodeIndex !== this.activeIndex) {
-        node.style.backgroundColor = '#666';
+      // 悬浮放大效果仅在非 active 时应用
+      if (index !== this.activeIndex) {
         node.style.transform = 'translate(-50%, -50%) scale(1.2)';
       }
       
       // 显示 tooltip
-      if (this.items[nodeIndex]) {
-        this.showTooltip(this.items[nodeIndex].promptText, node);
+      if (this.items[index]) {
+        this.showTooltip(this.items[index].promptText, node);
       }
     });
 
     node.addEventListener('mouseleave', () => {
-      const nodeIndex = parseInt(node.dataset.index || '0');
-      
       // 恢复样式
-      if (nodeIndex !== this.activeIndex) {
-        node.style.backgroundColor = '#888';
-        node.style.transform = 'translate(-50%, -50%) scale(1)';
-      }
+      this.updateNodeStyle(node, index);
       
       // 隐藏 tooltip
       this.hideTooltip();
     });
 
     // 点击事件
-    node.addEventListener('click', () => {
+    node.addEventListener('click', (e) => {
+      // 如果触发了长按，则阻止点击跳转
+      if (isLongPress) {
+        e.preventDefault();
+        e.stopPropagation();
+        return;
+      }
+      
       const clickedIndex = parseInt(node.dataset.index || '0');
       if (this.onClickCallback) {
         this.onClickCallback(clickedIndex);
@@ -298,19 +395,15 @@ export class RightSideTimelineNavigator {
 
     // 重置之前的 active 节点
     if (this.activeIndex >= 0 && this.activeIndex < this.nodes.length) {
-      const oldNode = this.nodes[this.activeIndex];
-      oldNode.style.backgroundColor = '#888';
-      oldNode.style.transform = 'translate(-50%, -50%) scale(1)';
-      oldNode.style.border = '2px solid #fff';
+      const oldIndex = this.activeIndex;
+      // 临时更改 activeIndex 以便 updateNodeStyle 正确判断
+      this.activeIndex = -1; 
+      this.updateNodeStyle(this.nodes[oldIndex], oldIndex);
     }
 
     // 设置新的 active 节点
     this.activeIndex = index;
-    const newNode = this.nodes[index];
-    newNode.style.backgroundColor = '#4CAF50'; // 绿色高亮
-    newNode.style.transform = 'translate(-50%, -50%) scale(1.4)';
-    newNode.style.border = '3px solid #fff';
-    newNode.style.boxShadow = '0 0 10px rgba(76, 175, 80, 0.5)';
+    this.updateNodeStyle(this.nodes[index], index);
   }
 
   /**

@@ -157,6 +157,25 @@ function clearUI(): void {
 }
 
 /**
+ * 从 URL 或页面中获取对话 ID
+ */
+function getConversationId(): string {
+  const pathname = window.location.pathname;
+  
+  // 尝试从 URL 匹配 /c/UUID
+  const match = pathname.match(/\/c\/([a-zA-Z0-9-]+)/);
+  if (match && match[1]) {
+    return match[1];
+  }
+  
+  // 如果是根路径，可能是新对话，尝试查找 meta 标签或特定元素
+  // 这里暂时使用 pathname 作为 ID (例如 "/" 或 "/chat")
+  // 为了避免不同新对话共享状态，最好能找到唯一标识
+  // 但如果没有唯一标识，只能暂时不持久化或使用临时 ID
+  return pathname === '/' ? 'new-chat' : pathname;
+}
+
+/**
  * 初始化时间线导航器
  */
 function initTimelineNavigator(): void {
@@ -168,6 +187,10 @@ function initTimelineNavigator(): void {
   }
   
   timelineNavigator = new RightSideTimelineNavigator();
+  
+  // 设置对话 ID，用于持久化“重点标记”
+  const conversationId = getConversationId();
+  timelineNavigator.setConversationId(conversationId);
   
   // 注册节点点击事件
   timelineNavigator.onNodeClick((itemIndex: number) => {
