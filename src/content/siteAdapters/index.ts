@@ -46,6 +46,13 @@ export interface SiteAdapter {
    * @param root - 根节点
    */
   getScrollContainer?(root: Document | HTMLElement): HTMLElement;
+
+  /**
+   * 快速获取问题数量（用于性能优化）
+   * 仅计算 Prompt 数量，不执行布局计算
+   * 如果未实现，IndexManager 将回退到 getPromptAnswerPairs().length
+   */
+  getPromptCount?(root: Document | HTMLElement): number;
   
   /**
    * 适配器名称

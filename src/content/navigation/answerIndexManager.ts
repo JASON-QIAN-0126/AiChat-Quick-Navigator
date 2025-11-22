@@ -270,6 +270,11 @@ export class AnswerIndexManager {
    * 如果页面上的对话数量发生变化，返回 true
    */
   needsRefresh(): boolean {
+    // 优先使用轻量级的计数方法
+    if (this.adapter.getPromptCount) {
+      return this.adapter.getPromptCount(this.root) !== this.items.length;
+    }
+    // 回退到全量扫描
     const currentPairs = this.adapter.getPromptAnswerPairs(this.root);
     return currentPairs.length !== this.items.length;
   }
