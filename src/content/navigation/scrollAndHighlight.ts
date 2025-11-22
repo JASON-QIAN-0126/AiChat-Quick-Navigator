@@ -93,8 +93,6 @@ export function scrollToAnswer(node: HTMLElement, topOffset: number = 80): void 
     top: targetPosition,
     behavior: 'smooth'
   });
-  
-  console.log('滚动到回答节点');
 }
 
 /**
@@ -120,8 +118,6 @@ export function highlightAnswer(node: HTMLElement): void {
   setTimeout(() => {
     // 不完全移除，让边框保持淡显示
   }, 2000);
-  
-  console.log('高亮回答节点');
 }
 
 /**

@@ -38,8 +38,6 @@ export class AnswerIndexManager {
 
     // 按 topOffset 排序
     this.answers.sort((a, b) => a.topOffset - b.topOffset);
-
-    console.log(`AnswerIndexManager: 刷新完成，共 ${this.answers.length} 个回答`);
   }
 
   /**
@@ -83,8 +81,6 @@ export class AnswerIndexManager {
     } else {
       this.currentIndex = index;
     }
-
-    console.log(`AnswerIndexManager: 当前索引设置为 ${this.currentIndex + 1}/${this.answers.length}`);
   }
 
   /**
@@ -158,7 +154,6 @@ export class AnswerIndexManager {
     // 只有当索引变化时才更新
     if (closestIndex !== this.currentIndex) {
       this.currentIndex = closestIndex;
-      console.log(`AnswerIndexManager: 滚动更新索引为 ${this.currentIndex + 1}/${this.answers.length}`);
     }
   }
 

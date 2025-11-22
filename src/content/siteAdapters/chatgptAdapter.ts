@@ -72,8 +72,6 @@ export const chatgptAdapter: SiteAdapter = {
       });
     }
     
-    console.log(`ChatGPT Adapter: 找到 ${answers.length} 个 AI 回答节点`);
-    
     return answers;
   }
 };

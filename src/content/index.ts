@@ -126,7 +126,6 @@ async function init() {
   // 监听 DOM 变化，以便在新回答出现时刷新
   const observer = new MutationObserver(debounce(() => {
     if (indexManager && indexManager.needsRefresh()) {
-      console.log('检测到页面变化，刷新回答列表');
       indexManager.refresh();
       updateUI();
     }
