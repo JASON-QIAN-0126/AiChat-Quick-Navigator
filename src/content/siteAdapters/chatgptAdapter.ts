@@ -110,6 +110,28 @@ export const chatgptAdapter: SiteAdapter = {
     });
     
     return pairs;
+  },
+
+  /**
+   * 快速获取问题数量
+   */
+  getPromptCount(root: Document | HTMLElement): number {
+    // 直接复用 getPromptAnswerPairs 中的核心选择器逻辑
+    // 排除输入框等干扰项的简化版逻辑
+    const allUserRoles = root.querySelectorAll('[data-message-author-role="user"]');
+    let count = 0;
+    
+    for (let i = 0; i < allUserRoles.length; i++) {
+      const el = allUserRoles[i] as HTMLElement;
+      // 简单的可见性/有效性检查，尽量避免 offsetHeight/getBoundingClientRect
+      // 这里只检查是否包含某些特定排除项
+      if (el.querySelector('textarea') || el.querySelector('form')) {
+        continue;
+      }
+      count++;
+    }
+    
+    return count;
   }
 };
 

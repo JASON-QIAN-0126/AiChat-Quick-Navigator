@@ -23,11 +23,32 @@ export class AnswerIndexManager {
   // 位置缓存，减少getBoundingClientRect调用
   private positionCache: Map<number, { top: number, bottom: number, timestamp: number }> = new Map();
   private readonly CACHE_VALIDITY_MS = 500; // 缓存有效期500ms
+  
+  private intersectionObserver: IntersectionObserver | null = null;
+  private onIndexChangeCallback: ((index: number) => void) | null = null;
+
+  // 是否允许滚动更新（默认为 true）
+  private scrollUpdateEnabled: boolean = true;
 
   constructor(adapter: SiteAdapter, root: Document | HTMLElement) {
     this.adapter = adapter;
     this.root = root;
     this.refresh();
+  }
+
+  /**
+   * 设置是否允许滚动更新索引
+   * 当点击导航时，应暂时禁用，以防止滚动过程中触发错误的索引更新
+   */
+  setScrollUpdateEnabled(enabled: boolean): void {
+    this.scrollUpdateEnabled = enabled;
+  }
+
+  /**
+   * 注册索引变更回调
+   */
+  onIndexChange(callback: (index: number) => void): void {
+    this.onIndexChangeCallback = callback;
   }
 
   /**
@@ -51,6 +72,62 @@ export class AnswerIndexManager {
     
     // 清除位置缓存
     this.positionCache.clear();
+    
+    // 初始化 IntersectionObserver
+    this.initIntersectionObserver();
+  }
+
+  /**
+   * 初始化 IntersectionObserver 以替代 scroll 事件轮询
+   */
+  private initIntersectionObserver(): void {
+    if (this.intersectionObserver) {
+      this.intersectionObserver.disconnect();
+    }
+    
+    // 使用 IntersectionObserver 监听元素穿过视口中线的行为
+    // rootMargin 设置为中间一条线（稍微有一点厚度以防跳过）
+    // 当 Prompt 从下面上来进入中线，或者从上面下来进入中线，都会触发
+    this.intersectionObserver = new IntersectionObserver((entries) => {
+      // 如果禁用了滚动更新，直接忽略
+      if (!this.scrollUpdateEnabled) return;
+
+      // 找出所有 intersecting 的 entry
+      const intersectingEntries = entries.filter(e => e.isIntersecting);
+      
+      if (intersectingEntries.length > 0) {
+        // 如果有多个同时触发（例如初始化或快速滚动），取 index 最大的那个
+        // 假设用户是往下阅读，最新的那个通常是当前关注点
+        let targetIndex = -1;
+        
+        for (const entry of intersectingEntries) {
+          const index = parseInt((entry.target as HTMLElement).dataset.llmNavIndex || '-1');
+          if (index > targetIndex) {
+            targetIndex = index;
+          }
+        }
+        
+        if (targetIndex !== -1) {
+          this.setCurrentIndex(targetIndex);
+          if (this.onIndexChangeCallback) {
+            this.onIndexChangeCallback(targetIndex);
+          }
+        }
+      }
+    }, {
+      // 触发区域：视口中间偏上的位置 (45% ~ 50%)
+      // 这样当标题滚到屏幕中间时触发高亮
+      rootMargin: '-45% 0px -50% 0px',
+      threshold: 0
+    });
+
+    this.items.forEach((item, index) => {
+      if (item.promptNode) {
+        // 标记索引
+        item.promptNode.dataset.llmNavIndex = String(index);
+        this.intersectionObserver!.observe(item.promptNode);
+      }
+    });
   }
   
   /**
@@ -270,6 +347,11 @@ export class AnswerIndexManager {
    * 如果页面上的对话数量发生变化，返回 true
    */
   needsRefresh(): boolean {
+    // 优先使用轻量级的计数方法
+    if (this.adapter.getPromptCount) {
+      return this.adapter.getPromptCount(this.root) !== this.items.length;
+    }
+    // 回退到全量扫描
     const currentPairs = this.adapter.getPromptAnswerPairs(this.root);
     return currentPairs.length !== this.items.length;
   }

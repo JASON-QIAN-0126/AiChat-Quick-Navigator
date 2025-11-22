@@ -35,6 +35,19 @@ export const geminiAdapter: SiteAdapter = {
     });
 
     return pairs;
+  },
+
+  /**
+   * 快速获取问题数量
+   */
+  getPromptCount(root: Document | HTMLElement): number {
+    const userSelectors = [
+      'user-query', // 标签名
+      '.user-query', // 类名
+      '[data-test-id="user-query"]' // 属性
+    ];
+    // Gemini 的选择器比较明确，通常不需要额外的 filter
+    return root.querySelectorAll(userSelectors.join(',')).length;
   }
 };
 

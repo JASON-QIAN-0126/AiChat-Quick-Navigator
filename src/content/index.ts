@@ -66,23 +66,53 @@ function navigateToAnswer(index: number): void {
     return;
   }
   
-  // 标记开始手动导航，暂时屏蔽滚动监听的干扰
+  // 1. 禁用 Observer 自动更新
+  // 防止自动滚动过程中 IntersectionObserver 错误地更新索引
+  indexManager.setScrollUpdateEnabled(false);
   isManualScrolling = true;
   
+  // 2. 设置索引并执行滚动
   indexManager.setCurrentIndex(index);
   const node = indexManager.getCurrentNode();
   
   if (node) {
-    // 使用滚动和高亮模块
     scrollToAndHighlight(node);
   }
   
-  // 更新 UI 显示
+  // 3. 更新 UI 显示
   updateUI();
   
-  // 1秒后释放锁（给足够的时间让滚动动画完成）
-  setTimeout(() => {
+  // 4. 恢复逻辑：监听用户交互或超时
+  // 定义恢复函数
+  const restoreScrollTracking = () => {
+    if (!indexManager) return;
+    
     isManualScrolling = false;
+    indexManager.setScrollUpdateEnabled(true);
+    
+    // 移除监听器
+    cleanupListeners();
+  };
+  
+  // 监听用户交互事件（一旦用户手动介入，立即恢复跟踪）
+  const userInteractionEvents = ['wheel', 'touchmove', 'keydown', 'mousedown'];
+  const cleanupListeners = () => {
+    userInteractionEvents.forEach(event => {
+      window.removeEventListener(event, restoreScrollTracking, { capture: true });
+    });
+  };
+  
+  userInteractionEvents.forEach(event => {
+    window.addEventListener(event, restoreScrollTracking, { capture: true, passive: true });
+  });
+  
+  // 5. 保底机制：如果用户一直不操作，1秒后自动恢复
+  // 考虑到平滑滚动可能需要时间，1秒通常足够
+  setTimeout(() => {
+    // 只有当仍然处于手动滚动状态时才恢复，避免覆盖了用户的早期介入
+    if (isManualScrolling) {
+      restoreScrollTracking();
+    }
   }, 1000);
 }
 
@@ -94,18 +124,13 @@ function navigateToPrev(): void {
     return;
   }
   
-  // 如果已经在第一个，滚动到第一个的顶部
-  if (indexManager.getCurrentIndex() === 0) {
-    const node = indexManager.getCurrentNode();
-    if (node) {
-      scrollToAndHighlight(node);
-    }
-  } else {
-    // 否则跳转到上一个
-    if (indexManager.moveToPrev()) {
-      navigateToAnswer(indexManager.getCurrentIndex());
-    }
-  }
+  const currentIndex = indexManager.getCurrentIndex();
+  // 即使已经是第一个（index 0），也执行跳转（相当于滚动到顶部）
+  // 使用 Math.max 确保不小于 0
+  const targetIndex = Math.max(0, currentIndex - 1);
+  
+  // 统一使用 navigateToAnswer 以复用滚动锁定逻辑
+  navigateToAnswer(targetIndex);
 }
 
 /**
@@ -116,8 +141,13 @@ function navigateToNext(): void {
     return;
   }
   
-  if (indexManager.moveToNext()) {
-    navigateToAnswer(indexManager.getCurrentIndex());
+  const currentIndex = indexManager.getCurrentIndex();
+  const total = indexManager.getTotalCount();
+  
+  // 只有当不是最后一个时才跳转
+  if (currentIndex < total - 1) {
+    // 统一使用 navigateToAnswer 以复用滚动锁定逻辑
+    navigateToAnswer(currentIndex + 1);
   }
 }
 
@@ -148,15 +178,12 @@ const handleResize = debounce(() => {
  * 处理滚动事件
  */
 const handleScroll = debounce(() => {
-  // 如果正在执行点击导航，忽略滚动事件，防止覆盖目标索引
+  // 如果正在执行点击导航，忽略滚动事件
   if (isManualScrolling) {
     return;
   }
 
-  if (indexManager) {
-    indexManager.updateCurrentIndexByScroll(window.scrollY);
-    updateUI();
-  }
+  // 仅用于其他可能的滚动逻辑，索引更新已移交 IntersectionObserver
 }, 100);
 
 /**
@@ -215,30 +242,26 @@ import type { ThemeMode } from './navigation/themes';
 function initTimelineNavigator(): void {
   if (!indexManager) return;
   
-  // 再次确保旧的被清理
-  if (timelineNavigator) {
-    timelineNavigator.destroy();
+  // 如果不存在实例，则创建
+  if (!timelineNavigator) {
+    timelineNavigator = new RightSideTimelineNavigator();
+    
+    // 注册节点点击事件 (只需注册一次)
+    timelineNavigator.onNodeClick((itemIndex: number) => {
+      // 复用 navigateToAnswer 函数，统一管理锁逻辑
+      navigateToAnswer(itemIndex);
+    });
   }
   
-  timelineNavigator = new RightSideTimelineNavigator();
-  
-  // 1. 设置对话 ID
+  // 1. 更新/设置对话 ID
   const conversationId = getConversationId();
   timelineNavigator.setConversationId(conversationId);
 
-  // 2. 加载并设置主题
+  // 2. 更新/设置主题
   const theme = (cachedSettings?.ui_theme as ThemeMode) || 'auto';
-  if (timelineNavigator) {
-    timelineNavigator.setTheme(theme);
-  }
+  timelineNavigator.setTheme(theme);
   
-  // 注册节点点击事件
-  timelineNavigator.onNodeClick((itemIndex: number) => {
-    // 复用 navigateToAnswer 函数，统一管理锁逻辑
-    navigateToAnswer(itemIndex);
-  });
-  
-  // 传入所有 Prompt-Answer 条目
+  // 3. 传入所有 Prompt-Answer 条目 (init 方法内部会处理增量更新)
   const items = indexManager.getItems();
   timelineNavigator.init(items);
   timelineNavigator.updateActiveIndex(indexManager.getCurrentIndex());
@@ -322,6 +345,11 @@ async function init() {
     
     // 初始化索引管理器
     indexManager = new AnswerIndexManager(adapter, rootElement);
+    
+    // 注册索引变更回调，自动更新 UI
+    indexManager.onIndexChange((index) => {
+      updateUI();
+    });
   
   const totalCount = indexManager.getTotalCount();
   

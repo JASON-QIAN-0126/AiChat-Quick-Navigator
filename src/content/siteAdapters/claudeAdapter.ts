@@ -46,6 +46,31 @@ export const claudeAdapter: SiteAdapter = {
     });
 
     return pairs;
+  },
+
+  /**
+   * 快速获取问题数量
+   */
+  getPromptCount(root: Document | HTMLElement): number {
+    const selectors = [
+      '.font-user-message', // 常见类名
+      '[data-testid="user-message"]', // 测试 ID
+      'div.group.grid.grid-cols-1' // 某些版本的容器
+    ].join(',');
+    
+    const elements = root.querySelectorAll(selectors);
+    let count = 0;
+    
+    for (let i = 0; i < elements.length; i++) {
+      const el = elements[i];
+      // 简单的文本长度检查，避免昂贵的布局计算
+      // 注意：textContent 访问通常比 getBoundingClientRect 快得多
+      if (el.textContent && el.textContent.trim().length > 0) {
+        count++;
+      }
+    }
+    
+    return count;
   }
 };
 
