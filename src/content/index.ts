@@ -215,30 +215,26 @@ import type { ThemeMode } from './navigation/themes';
 function initTimelineNavigator(): void {
   if (!indexManager) return;
   
-  // 再次确保旧的被清理
-  if (timelineNavigator) {
-    timelineNavigator.destroy();
+  // 如果不存在实例，则创建
+  if (!timelineNavigator) {
+    timelineNavigator = new RightSideTimelineNavigator();
+    
+    // 注册节点点击事件 (只需注册一次)
+    timelineNavigator.onNodeClick((itemIndex: number) => {
+      // 复用 navigateToAnswer 函数，统一管理锁逻辑
+      navigateToAnswer(itemIndex);
+    });
   }
   
-  timelineNavigator = new RightSideTimelineNavigator();
-  
-  // 1. 设置对话 ID
+  // 1. 更新/设置对话 ID
   const conversationId = getConversationId();
   timelineNavigator.setConversationId(conversationId);
 
-  // 2. 加载并设置主题
+  // 2. 更新/设置主题
   const theme = (cachedSettings?.ui_theme as ThemeMode) || 'auto';
-  if (timelineNavigator) {
-    timelineNavigator.setTheme(theme);
-  }
+  timelineNavigator.setTheme(theme);
   
-  // 注册节点点击事件
-  timelineNavigator.onNodeClick((itemIndex: number) => {
-    // 复用 navigateToAnswer 函数，统一管理锁逻辑
-    navigateToAnswer(itemIndex);
-  });
-  
-  // 传入所有 Prompt-Answer 条目
+  // 3. 传入所有 Prompt-Answer 条目 (init 方法内部会处理增量更新)
   const items = indexManager.getItems();
   timelineNavigator.init(items);
   timelineNavigator.updateActiveIndex(indexManager.getCurrentIndex());
