@@ -3,12 +3,12 @@
  * 负责平滑滚动到指定回答并高亮显示
  */
 
-import { themes, DEFAULT_THEME, type ThemeType } from './themes';
+import { themes, getDefaultTheme, type ThemeType } from './themes';
 
 const HIGHLIGHT_CLASS = 'llm-answer-nav-highlight';
 let currentHighlightedNode: HTMLElement | null = null;
 let stylesInjected = false;
-let currentTheme: ThemeType = DEFAULT_THEME;
+let currentTheme: ThemeType = getDefaultTheme();
 
 /**
  * 注入高亮样式
@@ -17,7 +17,7 @@ async function injectStyles(): Promise<void> {
   // 加载当前主题
   try {
     const result = await chrome.storage.sync.get('ui_theme');
-    currentTheme = (result.ui_theme as ThemeType) || DEFAULT_THEME;
+    currentTheme = (result.ui_theme as ThemeType) || getDefaultTheme();
   } catch (error) {
     console.error('加载主题失败:', error);
   }

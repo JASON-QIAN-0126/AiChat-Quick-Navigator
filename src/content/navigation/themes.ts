@@ -63,5 +63,16 @@ export const themes: Record<string, Theme> = {
 
 export type ThemeType = keyof typeof themes;
 
-export const DEFAULT_THEME: ThemeType = 'green';
+/**
+ * 根据系统主题获取默认主题
+ */
+export function getDefaultTheme(): ThemeType {
+  // 检测系统是否使用暗色模式
+  if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+    return 'dark';
+  }
+  return 'green';
+}
+
+export const DEFAULT_THEME: ThemeType = getDefaultTheme();
 

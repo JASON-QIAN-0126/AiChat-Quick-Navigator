@@ -1,4 +1,4 @@
-import { themes, type ThemeType, DEFAULT_THEME, type Theme } from './themes';
+import { themes, type ThemeType, getDefaultTheme, type Theme } from './themes';
 
 /**
  * 导航 UI 管理器
@@ -15,7 +15,7 @@ export class NavigatorUI {
   
   private currentIndex: number = 0;
   private totalCount: number = 0;
-  private currentTheme: ThemeType = DEFAULT_THEME;
+  private currentTheme: ThemeType = getDefaultTheme();
   private isHidden: boolean = false;
 
   constructor() {
@@ -74,30 +74,6 @@ export class NavigatorUI {
       user-select: none;
     `;
     
-    button.addEventListener('mouseenter', () => {
-      if (!button.disabled) {
-        button.dataset.hovered = 'true';
-        button.style.transform = 'scale(1.05)';
-      }
-    });
-    
-    button.addEventListener('mouseleave', () => {
-      button.dataset.hovered = 'false';
-      button.style.transform = 'scale(1)';
-    });
-    
-    button.addEventListener('mousedown', () => {
-      if (!button.disabled) {
-        button.style.transform = 'scale(0.95)';
-      }
-    });
-    
-    button.addEventListener('mouseup', () => {
-      if (!button.disabled && button.dataset.hovered === 'true') {
-        button.style.transform = 'scale(1.05)';
-      }
-    });
-    
     return button;
   }
 
@@ -121,7 +97,7 @@ export class NavigatorUI {
    * 组装 UI
    */
   private setupUI(): void {
-    // 添加按钮事件监听
+    // 添加按钮点击事件监听
     this.prevButton.addEventListener('click', () => {
       if (this.onPrevCallback) {
         this.onPrevCallback();
@@ -254,11 +230,12 @@ export class NavigatorUI {
   private async loadTheme(): Promise<void> {
     try {
       const result = await chrome.storage.sync.get('ui_theme');
-      const themeName = (result.ui_theme as ThemeType) || DEFAULT_THEME;
+      // 如果用户没有设置过主题，使用系统默认
+      const themeName = (result.ui_theme as ThemeType) || getDefaultTheme();
       this.setTheme(themeName);
     } catch (error) {
       console.error('加载主题失败:', error);
-      this.setTheme(DEFAULT_THEME);
+      this.setTheme(getDefaultTheme());
     }
   }
 
@@ -266,16 +243,24 @@ export class NavigatorUI {
    * 设置主题
    */
   setTheme(themeName: ThemeType): void {
-    const theme = themes[themeName] || themes[DEFAULT_THEME];
+    const theme = themes[themeName] || themes[getDefaultTheme()];
     this.currentTheme = themeName;
     
     // 更新容器样式
     this.container.style.background = theme.background;
     this.container.style.borderColor = theme.border;
     
-    // 更新按钮样式
+    // 更新按钮样式和主题数据
     this.updateButtonTheme(this.prevButton, theme);
     this.updateButtonTheme(this.nextButton, theme);
+    
+    // 如果是第一次设置主题，添加 hover 效果
+    if (!this.prevButton.dataset.hoverBound) {
+      this.applyButtonHoverEffects(this.prevButton, theme);
+      this.applyButtonHoverEffects(this.nextButton, theme);
+      this.prevButton.dataset.hoverBound = 'true';
+      this.nextButton.dataset.hoverBound = 'true';
+    }
     
     // 更新文字颜色
     this.indexDisplay.style.color = theme.textColor;
@@ -287,24 +272,44 @@ export class NavigatorUI {
    * 更新按钮主题
    */
   private updateButtonTheme(button: HTMLButtonElement, theme: Theme): void {
+    // 只更新背景色，不破坏已有的事件绑定
     button.style.background = theme.primary;
     
-    // 重新绑定悬停效果
-    const oldButton = button.cloneNode(true) as HTMLButtonElement;
-    button.parentNode?.replaceChild(button, oldButton);
-    
+    // 存储主题颜色到 data 属性，供 hover 事件使用
+    button.dataset.primaryColor = theme.primary;
+    button.dataset.primaryHover = theme.primaryHover;
+  }
+
+  /**
+   * 应用按钮主题的 hover 效果
+   */
+  private applyButtonHoverEffects(button: HTMLButtonElement, theme: Theme): void {
     button.addEventListener('mouseenter', () => {
-      if (!button.disabled) {
-        button.style.background = theme.primaryHover;
+      if (!button.disabled && button.dataset.primaryHover) {
+        button.style.background = button.dataset.primaryHover;
+        button.dataset.hovered = 'true';
         button.style.transform = 'scale(1.05)';
       }
     });
     
     button.addEventListener('mouseleave', () => {
-      if (!button.disabled) {
-        button.style.background = theme.primary;
+      if (button.dataset.primaryColor) {
+        button.style.background = button.dataset.primaryColor;
       }
+      button.dataset.hovered = 'false';
       button.style.transform = 'scale(1)';
+    });
+    
+    button.addEventListener('mousedown', () => {
+      if (!button.disabled) {
+        button.style.transform = 'scale(0.95)';
+      }
+    });
+    
+    button.addEventListener('mouseup', () => {
+      if (!button.disabled && button.dataset.hovered === 'true') {
+        button.style.transform = 'scale(1.05)';
+      }
     });
   }
 

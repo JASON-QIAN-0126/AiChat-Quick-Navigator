@@ -7,6 +7,14 @@ const CONFIG_KEYS = {
   UI_THEME: 'ui_theme'
 };
 
+// 获取默认主题（根据系统模式）
+function getDefaultTheme(): string {
+  if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+    return 'dark';
+  }
+  return 'green';
+}
+
 // 加载配置
 async function loadSettings(): Promise<void> {
   try {
@@ -16,7 +24,7 @@ async function loadSettings(): Promise<void> {
     ]);
     
     const enableChatGPT = result[CONFIG_KEYS.ENABLE_CHATGPT] !== false; // 默认启用
-    const uiTheme = result[CONFIG_KEYS.UI_THEME] || 'green'; // 默认绿色
+    const uiTheme = result[CONFIG_KEYS.UI_THEME] || getDefaultTheme(); // 默认根据系统模式
     
     const checkbox = document.getElementById('enable-chatgpt') as HTMLInputElement;
     if (checkbox) {
