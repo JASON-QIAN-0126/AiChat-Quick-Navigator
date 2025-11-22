@@ -3,15 +3,32 @@
  * 负责平滑滚动到指定回答并高亮显示
  */
 
+import { themes, DEFAULT_THEME, type ThemeType } from './themes';
+
 const HIGHLIGHT_CLASS = 'llm-answer-nav-highlight';
 let currentHighlightedNode: HTMLElement | null = null;
 let stylesInjected = false;
+let currentTheme: ThemeType = DEFAULT_THEME;
 
 /**
  * 注入高亮样式
  */
-function injectStyles(): void {
-  if (stylesInjected) return;
+async function injectStyles(): Promise<void> {
+  // 加载当前主题
+  try {
+    const result = await chrome.storage.sync.get('ui_theme');
+    currentTheme = (result.ui_theme as ThemeType) || DEFAULT_THEME;
+  } catch (error) {
+    console.error('加载主题失败:', error);
+  }
+  
+  const theme = themes[currentTheme];
+  
+  // 移除旧样式
+  const oldStyle = document.getElementById('llm-answer-nav-styles');
+  if (oldStyle) {
+    oldStyle.remove();
+  }
   
   const style = document.createElement('style');
   style.id = 'llm-answer-nav-styles';
@@ -28,7 +45,7 @@ function injectStyles(): void {
       left: -8px;
       right: -8px;
       bottom: -8px;
-      border: 3px solid #4CAF50;
+      border: 3px solid ${theme.highlightBorder};
       border-radius: 8px;
       pointer-events: none;
       animation: llm-nav-border-fade 2s ease-in-out forwards;
@@ -39,7 +56,7 @@ function injectStyles(): void {
         background-color: transparent;
       }
       50% {
-        background-color: rgba(76, 175, 80, 0.1);
+        background-color: ${theme.highlightBackground};
       }
     }
     
@@ -51,22 +68,6 @@ function injectStyles(): void {
       100% {
         opacity: 0.3;
         border-width: 2px;
-      }
-    }
-    
-    /* 深色模式适配 */
-    @media (prefers-color-scheme: dark) {
-      .${HIGHLIGHT_CLASS}::before {
-        border-color: #66BB6A;
-      }
-      
-      @keyframes llm-nav-highlight-pulse {
-        0%, 100% {
-          background-color: transparent;
-        }
-        50% {
-          background-color: rgba(102, 187, 106, 0.15);
-        }
       }
     }
   `;
@@ -136,11 +137,11 @@ export function scrollToAnswer(node: HTMLElement, topOffset: number = 80): void 
  * 高亮指定的回答节点
  * @param node - 要高亮的回答节点
  */
-export function highlightAnswer(node: HTMLElement): void {
+export async function highlightAnswer(node: HTMLElement): Promise<void> {
   if (!node) return;
   
   // 确保样式已注入
-  injectStyles();
+  await injectStyles();
   
   // 移除之前的高亮
   if (currentHighlightedNode && currentHighlightedNode !== node) {

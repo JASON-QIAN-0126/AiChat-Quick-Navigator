@@ -1,3 +1,5 @@
+import { themes, type ThemeType, DEFAULT_THEME, type Theme } from './themes';
+
 /**
  * 导航 UI 管理器
  * 负责创建和管理页面右下角的悬浮导航面板
@@ -13,6 +15,8 @@ export class NavigatorUI {
   
   private currentIndex: number = 0;
   private totalCount: number = 0;
+  private currentTheme: ThemeType = DEFAULT_THEME;
+  private isHidden: boolean = false;
 
   constructor() {
     this.container = this.createContainer();
@@ -22,6 +26,7 @@ export class NavigatorUI {
     
     this.setupUI();
     this.attachToPage();
+    this.loadTheme();
   }
 
   /**
@@ -39,20 +44,12 @@ export class NavigatorUI {
       flex-direction: column;
       gap: 8px;
       padding: 12px;
-      background: rgba(255, 255, 255, 0.95);
-      border: 1px solid #ddd;
       border-radius: 12px;
       box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
       backdrop-filter: blur(10px);
-      transition: opacity 0.3s ease;
+      transition: all 0.3s ease;
     `;
-    
-    // 深色模式适配
-    if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
-      container.style.background = 'rgba(30, 30, 30, 0.95)';
-      container.style.borderColor = '#555';
-    }
     
     return container;
   }
@@ -67,7 +64,6 @@ export class NavigatorUI {
     button.dataset.originalTitle = title; // 保存原始标题
     button.style.cssText = `
       padding: 8px 16px;
-      background: #4CAF50;
       color: white;
       border: none;
       border-radius: 6px;
@@ -79,21 +75,27 @@ export class NavigatorUI {
     `;
     
     button.addEventListener('mouseenter', () => {
-      button.style.background = '#45a049';
-      button.style.transform = 'scale(1.05)';
+      if (!button.disabled) {
+        button.dataset.hovered = 'true';
+        button.style.transform = 'scale(1.05)';
+      }
     });
     
     button.addEventListener('mouseleave', () => {
-      button.style.background = '#4CAF50';
+      button.dataset.hovered = 'false';
       button.style.transform = 'scale(1)';
     });
     
     button.addEventListener('mousedown', () => {
-      button.style.transform = 'scale(0.95)';
+      if (!button.disabled) {
+        button.style.transform = 'scale(0.95)';
+      }
     });
     
     button.addEventListener('mouseup', () => {
-      button.style.transform = 'scale(1.05)';
+      if (!button.disabled && button.dataset.hovered === 'true') {
+        button.style.transform = 'scale(1.05)';
+      }
     });
     
     return button;
@@ -108,15 +110,9 @@ export class NavigatorUI {
       text-align: center;
       font-size: 14px;
       font-weight: 500;
-      color: #333;
       padding: 4px 0;
       user-select: none;
     `;
-    
-    // 深色模式适配
-    if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
-      display.style.color = '#ddd';
-    }
     
     return display;
   }
@@ -250,6 +246,91 @@ export class NavigatorUI {
    */
   destroy(): void {
     this.container.remove();
+  }
+
+  /**
+   * 加载主题配置
+   */
+  private async loadTheme(): Promise<void> {
+    try {
+      const result = await chrome.storage.sync.get('ui_theme');
+      const themeName = (result.ui_theme as ThemeType) || DEFAULT_THEME;
+      this.setTheme(themeName);
+    } catch (error) {
+      console.error('加载主题失败:', error);
+      this.setTheme(DEFAULT_THEME);
+    }
+  }
+
+  /**
+   * 设置主题
+   */
+  setTheme(themeName: ThemeType): void {
+    const theme = themes[themeName] || themes[DEFAULT_THEME];
+    this.currentTheme = themeName;
+    
+    // 更新容器样式
+    this.container.style.background = theme.background;
+    this.container.style.borderColor = theme.border;
+    
+    // 更新按钮样式
+    this.updateButtonTheme(this.prevButton, theme);
+    this.updateButtonTheme(this.nextButton, theme);
+    
+    // 更新文字颜色
+    this.indexDisplay.style.color = theme.textColor;
+    
+    console.log(`🎨 主题已切换为: ${theme.name}`);
+  }
+
+  /**
+   * 更新按钮主题
+   */
+  private updateButtonTheme(button: HTMLButtonElement, theme: Theme): void {
+    button.style.background = theme.primary;
+    
+    // 重新绑定悬停效果
+    const oldButton = button.cloneNode(true) as HTMLButtonElement;
+    button.parentNode?.replaceChild(button, oldButton);
+    
+    button.addEventListener('mouseenter', () => {
+      if (!button.disabled) {
+        button.style.background = theme.primaryHover;
+        button.style.transform = 'scale(1.05)';
+      }
+    });
+    
+    button.addEventListener('mouseleave', () => {
+      if (!button.disabled) {
+        button.style.background = theme.primary;
+      }
+      button.style.transform = 'scale(1)';
+    });
+  }
+
+  /**
+   * 切换显示/隐藏
+   */
+  toggle(): void {
+    this.isHidden = !this.isHidden;
+    if (this.isHidden) {
+      this.container.style.opacity = '0';
+      this.container.style.pointerEvents = 'none';
+      this.container.style.transform = 'translateX(120%)';
+      console.log('🙈 导航面板已隐藏');
+    } else {
+      this.container.style.opacity = '1';
+      this.container.style.pointerEvents = 'auto';
+      this.container.style.transform = 'translateX(0)';
+      console.log('👁️ 导航面板已显示');
+    }
+  }
+
+  /**
+   * 获取隐藏状态
+   */
+  getHiddenState(): boolean {
+    return this.isHidden;
   }
 }
 

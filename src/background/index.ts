@@ -9,9 +9,21 @@ chrome.commands.onCommand.addListener((command) => {
   chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
     if (tabs[0]?.id) {
       // 向 content script 发送消息
-      const message = command === 'prev-answer' 
-        ? { type: 'LLM_NAV_PREV_ANSWER' }
-        : { type: 'LLM_NAV_NEXT_ANSWER' };
+      let message;
+      
+      switch (command) {
+        case 'prev-answer':
+          message = { type: 'LLM_NAV_PREV_ANSWER' };
+          break;
+        case 'next-answer':
+          message = { type: 'LLM_NAV_NEXT_ANSWER' };
+          break;
+        case 'toggle-ui':
+          message = { type: 'LLM_NAV_TOGGLE_UI' };
+          break;
+        default:
+          return;
+      }
       
       chrome.tabs.sendMessage(tabs[0].id, message).catch((error) => {
         console.error('Failed to send message to content script:', error);

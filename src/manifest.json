@@ -36,6 +36,13 @@
         "mac": "Alt+Down"
       },
       "description": "跳转到下一条回答"
+    },
+    "toggle-ui": {
+      "suggested_key": {
+        "default": "Alt+D",
+        "mac": "Alt+D"
+      },
+      "description": "显示/隐藏导航面板"
     }
   },
   "options_page": "options/index.html",

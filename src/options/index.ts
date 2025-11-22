@@ -3,21 +3,32 @@ console.log('Options page loaded');
 
 // 配置键
 const CONFIG_KEYS = {
-  ENABLE_CHATGPT: 'enable_chatgpt'
+  ENABLE_CHATGPT: 'enable_chatgpt',
+  UI_THEME: 'ui_theme'
 };
 
 // 加载配置
 async function loadSettings(): Promise<void> {
   try {
-    const result = await chrome.storage.sync.get(CONFIG_KEYS.ENABLE_CHATGPT);
+    const result = await chrome.storage.sync.get([
+      CONFIG_KEYS.ENABLE_CHATGPT,
+      CONFIG_KEYS.UI_THEME
+    ]);
+    
     const enableChatGPT = result[CONFIG_KEYS.ENABLE_CHATGPT] !== false; // 默认启用
+    const uiTheme = result[CONFIG_KEYS.UI_THEME] || 'green'; // 默认绿色
     
     const checkbox = document.getElementById('enable-chatgpt') as HTMLInputElement;
     if (checkbox) {
       checkbox.checked = enableChatGPT;
     }
     
-    console.log('设置已加载:', { enableChatGPT });
+    const themeSelect = document.getElementById('ui-theme') as HTMLSelectElement;
+    if (themeSelect) {
+      themeSelect.value = uiTheme;
+    }
+    
+    console.log('设置已加载:', { enableChatGPT, uiTheme });
   } catch (error) {
     console.error('加载设置失败:', error);
   }
@@ -58,6 +69,29 @@ document.addEventListener('DOMContentLoaded', () => {
     chatgptCheckbox.addEventListener('change', (e) => {
       const target = e.target as HTMLInputElement;
       saveSetting(CONFIG_KEYS.ENABLE_CHATGPT, target.checked);
+    });
+  }
+  
+  // 监听主题选择变化
+  const themeSelect = document.getElementById('ui-theme') as HTMLSelectElement;
+  if (themeSelect) {
+    themeSelect.addEventListener('change', (e) => {
+      const target = e.target as HTMLSelectElement;
+      saveSetting(CONFIG_KEYS.UI_THEME, target.value);
+      
+      // 通知所有标签页更新主题
+      chrome.tabs.query({}, (tabs) => {
+        tabs.forEach((tab) => {
+          if (tab.id) {
+            chrome.tabs.sendMessage(tab.id, {
+              type: 'LLM_NAV_THEME_CHANGED',
+              theme: target.value
+            }).catch(() => {
+              // 忽略错误（某些标签页可能没有 content script）
+            });
+          }
+        });
+      });
     });
   }
 });

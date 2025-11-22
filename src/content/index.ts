@@ -247,7 +247,7 @@ if (document.readyState === 'loading') {
   init();
 }
 
-// 监听来自 background 的消息（快捷键触发）
+// 监听来自 background 和 options 的消息
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   console.log('Message received in content script:', message);
   
@@ -259,6 +259,22 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     console.log('快捷键触发：导航到下一条回答');
     navigateToNext();
     sendResponse({ success: true });
+  } else if (message.type === 'LLM_NAV_TOGGLE_UI') {
+    console.log('快捷键触发：切换导航面板显示');
+    if (navigatorUI) {
+      navigatorUI.toggle();
+      sendResponse({ success: true, hidden: navigatorUI.getHiddenState() });
+    } else {
+      sendResponse({ success: false, error: 'UI not initialized' });
+    }
+  } else if (message.type === 'LLM_NAV_THEME_CHANGED') {
+    console.log('主题已更改:', message.theme);
+    if (navigatorUI) {
+      navigatorUI.setTheme(message.theme);
+      sendResponse({ success: true });
+    } else {
+      sendResponse({ success: false, error: 'UI not initialized' });
+    }
   }
   
   return true; // 保持消息通道打开
