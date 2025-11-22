@@ -4,7 +4,8 @@
   "description": "Chrome 扩展：在 LLM 对话页面中提供回答导航功能",
   "scripts": {
     "build": "node build.js",
-    "dev": "node build.js --watch"
+    "dev": "node build.js --watch",
+    "package": "node build.js && node package-extension.js"
   },
   "keywords": ["chrome-extension", "llm", "chatgpt", "navigation"],
   "author": "",
