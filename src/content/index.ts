@@ -27,14 +27,22 @@ function debounce<T extends (...args: any[]) => void>(
  * 导航到指定的回答
  */
 function navigateToAnswer(index: number): void {
-  if (!indexManager) return;
+  if (!indexManager) {
+    console.warn('⚠️ indexManager 未初始化');
+    return;
+  }
   
   indexManager.setCurrentIndex(index);
   const node = indexManager.getCurrentNode();
   
+  console.log(`🎯 导航到第 ${index + 1}/${indexManager.getTotalCount()} 个回答`);
+  
   if (node) {
+    console.log('✅ 找到目标节点，开始滚动和高亮');
     // 使用滚动和高亮模块
     scrollToAndHighlight(node);
+  } else {
+    console.error('❌ 未找到目标节点');
   }
   
   // 更新 UI 显示
@@ -45,8 +53,11 @@ function navigateToAnswer(index: number): void {
  * 导航到上一条回答
  */
 function navigateToPrev(): void {
+  console.log('⬆️ 触发：上一条回答');
   if (indexManager && indexManager.moveToPrev()) {
     navigateToAnswer(indexManager.getCurrentIndex());
+  } else {
+    console.log('ℹ️ 已经是第一条回答');
   }
 }
 
@@ -54,8 +65,11 @@ function navigateToPrev(): void {
  * 导航到下一条回答
  */
 function navigateToNext(): void {
+  console.log('⬇️ 触发：下一条回答');
   if (indexManager && indexManager.moveToNext()) {
     navigateToAnswer(indexManager.getCurrentIndex());
+  } else {
+    console.log('ℹ️ 已经是最后一条回答');
   }
 }
 

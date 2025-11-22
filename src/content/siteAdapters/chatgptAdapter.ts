@@ -31,45 +31,70 @@ export const chatgptAdapter: SiteAdapter = {
    */
   findAllAnswers(root: Document | HTMLElement): HTMLElement[] {
     const answers: HTMLElement[] = [];
+    const foundMethods: string[] = [];
     
     // 方法 1: 尝试通过 data-message-author-role 属性查找
     const messageElements = root.querySelectorAll('[data-message-author-role="assistant"]');
     if (messageElements.length > 0) {
+      foundMethods.push(`data-message-author-role (${messageElements.length})`);
       messageElements.forEach(el => {
         if (el instanceof HTMLElement) {
           answers.push(el);
         }
       });
-      return answers;
     }
     
-    // 方法 2: 如果方法 1 没找到，尝试通过 class 查找
-    // ChatGPT 的回答通常在特定的容器中
-    // 这里使用一个更宽泛的选择器作为备选方案
-    const possibleAnswers = root.querySelectorAll('.group\\/conversation-turn, [class*="agent"]');
-    possibleAnswers.forEach(el => {
-      if (el instanceof HTMLElement) {
-        // 进一步过滤，排除用户消息
-        const isUserMessage = el.querySelector('[data-message-author-role="user"]');
-        if (!isUserMessage) {
-          answers.push(el);
-        }
-      }
-    });
-    
-    // 方法 3: 如果以上都没找到，尝试查找包含代码块或长段落的元素
-    // 这是一个更宽泛的备选方案
+    // 方法 2: 查找包含 assistant 回答的父容器（更通用的方法）
     if (answers.length === 0) {
-      const allMessages = root.querySelectorAll('article, [class*="message"], [class*="response"]');
-      allMessages.forEach(el => {
-        if (el instanceof HTMLElement) {
-          // 简单启发式：包含较多内容的可能是 AI 回答
-          const textLength = el.textContent?.length || 0;
-          if (textLength > 50) {
-            answers.push(el);
+      // 查找所有对话组
+      const conversationTurns = root.querySelectorAll('[data-testid^="conversation-turn"]');
+      conversationTurns.forEach(turn => {
+        if (turn instanceof HTMLElement) {
+          // 检查是否包含 assistant 标记
+          const hasAssistant = turn.querySelector('[data-message-author-role="assistant"]') ||
+                               turn.textContent?.includes('ChatGPT') ||
+                               turn.querySelector('.bg-\\[\\#f7f7f8\\]'); // ChatGPT 的背景色
+          
+          if (hasAssistant) {
+            answers.push(turn);
           }
         }
       });
+      if (answers.length > 0) {
+        foundMethods.push(`conversation-turn (${answers.length})`);
+      }
+    }
+    
+    // 方法 3: 通过结构特征查找（所有消息对的偶数项通常是 AI）
+    if (answers.length === 0) {
+      const allTurns = root.querySelectorAll('main [class*="group"]');
+      allTurns.forEach((turn, index) => {
+        if (turn instanceof HTMLElement) {
+          // 偶数索引通常是 AI 回答（假设对话是用户-AI交替的）
+          // 或者包含特定的样式特征
+          const hasGrayBg = window.getComputedStyle(turn).backgroundColor.includes('247, 247, 248');
+          if (index % 2 === 1 || hasGrayBg) {
+            answers.push(turn);
+          }
+        }
+      });
+      if (answers.length > 0) {
+        foundMethods.push(`structure-based (${answers.length})`);
+      }
+    }
+    
+    // 调试信息
+    if (answers.length > 0) {
+      console.log(`✅ ChatGPT Adapter: 找到 ${answers.length} 个 AI 回答节点 [方法: ${foundMethods.join(', ')}]`);
+      console.log('第一个回答节点:', {
+        tag: answers[0].tagName,
+        classes: answers[0].className,
+        dataAttrs: Array.from(answers[0].attributes)
+          .filter(attr => attr.name.startsWith('data-'))
+          .map(attr => `${attr.name}="${attr.value}"`)
+      });
+    } else {
+      console.warn('⚠️ ChatGPT Adapter: 未找到任何 AI 回答节点，请检查页面结构');
     }
     
     return answers;
