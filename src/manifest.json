@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "LLM Answer Navigator",
-  "version": "1.2.0",
+  "version": "1.2.1",
   "description": "在 LLM 对话页面中快速导航 AI 回答",
   "permissions": [
     "tabs",
@@ -43,6 +43,13 @@
         "mac": "Alt+D"
       },
       "description": "显示/隐藏导航面板"
+    },
+    "toggle-pin": {
+      "suggested_key": {
+        "default": "Alt+S",
+        "mac": "Alt+S"
+      },
+      "description": "标记/取消标记当前节点"
     }
   },
   "options_page": "options/index.html",

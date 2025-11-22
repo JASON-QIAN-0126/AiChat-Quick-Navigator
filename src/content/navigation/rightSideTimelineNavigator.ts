@@ -1,5 +1,6 @@
 import type { PromptAnswerItem } from './answerIndexManager';
 import { PinnedStore } from '../store/pinnedStore';
+import { themes, resolveTheme, type ThemeMode, type TimelineTheme } from './themes';
 
 /**
  * 右侧时间线导航器
@@ -17,6 +18,9 @@ export class RightSideTimelineNavigator {
   private resizeObserver: ResizeObserver | null = null;
   private conversationId: string | null = null;
   private pinnedNodes: Set<string> = new Set();
+  
+  // 当前主题
+  private currentTheme: TimelineTheme = themes.light;
 
   constructor() {
     this.container = this.createContainer();
@@ -31,6 +35,26 @@ export class RightSideTimelineNavigator {
       this.updateNodePositions();
     });
     this.resizeObserver.observe(this.container);
+
+    // 初始化主题监听 (系统主题变更)
+    window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => {
+      // 只有在 auto 模式下才响应系统变化，这里需要从外部触发更新，或者存储当前的 mode
+      // 简单起见，由外部 content script 监听 storage 变化来驱动 setTheme
+    });
+  }
+
+  /**
+   * 设置主题模式
+   */
+  setTheme(mode: ThemeMode) {
+    const themeType = resolveTheme(mode);
+    this.currentTheme = themes[themeType];
+    console.log(`🎨 Theme set to: ${themeType}`, this.currentTheme);
+    
+    // 刷新所有节点样式
+    this.nodes.forEach((node, index) => {
+      this.updateNodeStyle(node, index);
+    });
   }
 
   /**
@@ -104,18 +128,23 @@ export class RightSideTimelineNavigator {
     
     Object.assign(tooltip.style, {
       position: 'fixed',
-      maxWidth: '300px',
-      padding: '10px 14px',
-      backgroundColor: 'rgba(0, 0, 0, 0.85)',
-      color: '#fff',
-      fontSize: '13px',
-      lineHeight: '1.5',
+      maxWidth: '200px', // 缩窄宽度
+      padding: '8px 12px',
+      backgroundColor: 'rgba(255, 255, 255, 0.95)', // 白底微透明
+      color: '#000', // 黑字
+      fontSize: '12px',
+      lineHeight: '1.4',
       borderRadius: '6px',
-      boxShadow: '0 2px 10px rgba(0,0,0,0.3)',
+      boxShadow: '0 2px 10px rgba(0,0,0,0.15)',
       zIndex: '9999',
       pointerEvents: 'none',
       wordWrap: 'break-word',
-      whiteSpace: 'pre-wrap'
+      whiteSpace: 'pre-wrap',
+      // 限制显示两行
+      display: '-webkit-box',
+      webkitLineClamp: '2',
+      webkitBoxOrient: 'vertical',
+      overflow: 'hidden'
     });
 
     return tooltip;
@@ -132,12 +161,12 @@ export class RightSideTimelineNavigator {
 
     // 计算位置（显示在节点左侧）
     const rect = nodeElement.getBoundingClientRect();
-    const tooltipWidth = 300; // maxWidth
-    const gap = 15; // 节点与 tooltip 之间的间距
+    const tooltipWidth = 200; // maxWidth
+    const gap = 10; // 节点与 tooltip 之间的间距 (更紧邻)
 
     // 默认显示在左侧
-    let left = rect.left - tooltipWidth - gap;
-    let top = rect.top + rect.height / 2;
+    let left = rect.left - this.tooltip.offsetWidth - gap;
+    let top = rect.top + rect.height / 2 - this.tooltip.offsetHeight / 2; // 垂直居中
 
     // 如果左侧空间不够，显示在右侧
     if (left < 10) {
@@ -145,13 +174,9 @@ export class RightSideTimelineNavigator {
     }
 
     // 确保不超出顶部和底部
-    const tooltipHeight = this.tooltip.offsetHeight;
-    if (top + tooltipHeight / 2 > window.innerHeight - 10) {
-      top = window.innerHeight - tooltipHeight - 10;
-    } else if (top - tooltipHeight / 2 < 10) {
-      top = 10;
-    } else {
-      top = top - tooltipHeight / 2;
+    if (top < 10) top = 10;
+    if (top + this.tooltip.offsetHeight > window.innerHeight - 10) {
+      top = window.innerHeight - this.tooltip.offsetHeight - 10;
     }
 
     this.tooltip.style.left = `${left}px`;
@@ -177,16 +202,16 @@ export class RightSideTimelineNavigator {
     
     if (isActive) {
       // 激活状态
-      node.style.backgroundColor = '#4CAF50'; // 绿色
       node.style.transform = 'translate(-50%, -50%) scale(1.4)';
       node.style.zIndex = '10';
-      node.style.boxShadow = '0 0 10px rgba(76, 175, 80, 0.5)';
+      node.style.boxShadow = `0 0 10px ${this.currentTheme.activeShadow}`;
+      node.style.border = '3px solid #fff'; // 白色边框
       
-      // 如果也被标记了，加一个橙色外框
+      // 如果也被标记了，内部用重点色，否则用当前主题 Active 色
       if (isPinned) {
-        node.style.border = '3px solid #FF9800'; // 橙色边框
+        node.style.backgroundColor = '#FF9800'; // 重点色 (橙色)
       } else {
-        node.style.border = '3px solid #fff'; // 白色边框
+        node.style.backgroundColor = this.currentTheme.activeColor;
       }
     } else {
       // 非激活状态
@@ -311,30 +336,60 @@ export class RightSideTimelineNavigator {
   }
 
   /**
-   * 初始化时间线（传入所有对话条目）
+   * 初始化或更新时间线（传入所有对话条目）
+   * 采用增量更新策略，实现平滑动画
    */
   init(items: PromptAnswerItem[]): void {
-    // 清空旧节点
-    this.nodes.forEach(node => node.remove());
-    this.nodes = [];
     this.items = items;
+    const newCount = items.length;
+    const currentCount = this.nodes.length;
 
-    if (items.length === 0) {
-      console.warn('⚠️ Timeline: 没有对话条目，无法初始化');
+    if (newCount === 0) {
+      console.warn('⚠️ Timeline: 没有对话条目');
+      // 清空节点
+      this.nodes.forEach(node => node.remove());
+      this.nodes = [];
       return;
     }
 
-    // 创建节点并根据相对位置分布
+    // 1. 如果新数量少于当前数量（例如切换对话），移除多余节点
+    if (newCount < currentCount) {
+      for (let i = newCount; i < currentCount; i++) {
+        this.nodes[i].remove();
+      }
+      this.nodes.length = newCount;
+    }
+
+    // 2. 更新现有节点的数据，并创建新节点
     items.forEach((item, index) => {
-      const node = this.createNode(item, index);
-      this.container.appendChild(node);
-      this.nodes.push(node);
+      if (index < this.nodes.length) {
+        // 更新现有节点（如果有需要更新的数据，比如 tooltip 内容）
+        // 位置更新统一在 updateNodePositions 处理
+        // 确保样式正确
+        this.updateNodeStyle(this.nodes[index], index);
+      } else {
+        // 创建新节点
+        const node = this.createNode(item, index);
+        
+        // 新节点初始状态：透明、微缩
+        node.style.opacity = '0';
+        node.style.transform = 'translate(-50%, -50%) scale(0)';
+        
+        this.container.appendChild(node);
+        this.nodes.push(node);
+        
+        // 下一帧显示，触发过渡动画
+        requestAnimationFrame(() => {
+          node.style.opacity = '1';
+          this.updateNodeStyle(node, index); // 恢复正常样式和变换
+        });
+      }
     });
 
-    // 计算并设置节点位置
+    // 3. 计算并更新所有节点位置（利用 CSS transition 实现平滑移动）
     this.updateNodePositions();
 
-    console.log(`✅ Timeline: 初始化完成，创建了 ${this.nodes.length} 个节点`);
+    console.log(`✅ Timeline: 更新完成，当前 ${this.nodes.length} 个节点`);
   }
 
   /**
@@ -439,6 +494,35 @@ export class RightSideTimelineNavigator {
   }
 
   /**
+   * 切换当前节点的标记状态
+   */
+  async togglePinnedCurrent(): Promise<void> {
+    if (!this.conversationId || this.activeIndex < 0 || this.activeIndex >= this.nodes.length) {
+      return;
+    }
+    
+    const index = this.activeIndex;
+    const nodeId = String(index);
+    
+    // 调用 Store 更新状态
+    const newPinnedState = await PinnedStore.togglePinned(this.conversationId, nodeId);
+    
+    if (newPinnedState) {
+      this.pinnedNodes.add(nodeId);
+      console.log(`📌 快捷键：已标记节点 ${index}`);
+    } else {
+      this.pinnedNodes.delete(nodeId);
+      console.log(`📌 快捷键：取消标记节点 ${index}`);
+    }
+    
+    // 更新样式
+    this.updateNodeStyle(this.nodes[index], index);
+    
+    // 震动反馈
+    if (navigator.vibrate) navigator.vibrate(50);
+  }
+
+  /**
    * 销毁时间线
    */
   destroy(): void {
@@ -449,4 +533,5 @@ export class RightSideTimelineNavigator {
     this.tooltip.remove();
   }
 }
+
 

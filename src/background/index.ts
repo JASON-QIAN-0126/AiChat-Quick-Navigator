@@ -21,6 +21,9 @@ chrome.commands.onCommand.addListener((command) => {
         case 'toggle-ui':
           message = { type: 'LLM_NAV_TOGGLE_UI' };
           break;
+        case 'toggle-pin':
+          message = { type: 'LLM_NAV_TOGGLE_PIN' };
+          break;
         default:
           return;
       }

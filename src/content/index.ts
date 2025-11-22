@@ -175,6 +175,10 @@ function getConversationId(): string {
   return pathname === '/' ? 'new-chat' : pathname;
 }
 
+import type { ThemeMode } from './navigation/themes';
+
+// ... existing imports ...
+
 /**
  * 初始化时间线导航器
  */
@@ -188,12 +192,21 @@ function initTimelineNavigator(): void {
   
   timelineNavigator = new RightSideTimelineNavigator();
   
-  // 设置对话 ID，用于持久化“重点标记”
+  // 1. 设置对话 ID
   const conversationId = getConversationId();
   timelineNavigator.setConversationId(conversationId);
+
+  // 2. 加载并设置主题
+  chrome.storage.sync.get(['ui_theme'], (result) => {
+    const theme = (result.ui_theme as ThemeMode) || 'auto';
+    if (timelineNavigator) {
+      timelineNavigator.setTheme(theme);
+    }
+  });
   
   // 注册节点点击事件
   timelineNavigator.onNodeClick((itemIndex: number) => {
+// ... existing code ...
     console.log(`🖱️ Timeline: 点击了节点 ${itemIndex + 1}`);
     
     // 复用 navigateToAnswer 函数，统一管理锁逻辑
@@ -425,6 +438,18 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     } else {
       sendResponse({ success: false, error: 'Timeline not initialized' });
     }
+  } else if (message.type === 'LLM_NAV_UPDATE_THEME') {
+    console.log('配置更新：切换主题', message.theme);
+    if (timelineNavigator) {
+      timelineNavigator.setTheme(message.theme);
+    }
+    sendResponse({ success: true });
+  } else if (message.type === 'LLM_NAV_TOGGLE_PIN') {
+    console.log('快捷键触发：标记/取消标记当前节点');
+    if (timelineNavigator) {
+      timelineNavigator.togglePinnedCurrent();
+    }
+    sendResponse({ success: true });
   }
   
   return true; // 保持消息通道打开

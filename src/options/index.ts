@@ -84,7 +84,7 @@ document.addEventListener('DOMContentLoaded', () => {
         tabs.forEach((tab) => {
           if (tab.id) {
             chrome.tabs.sendMessage(tab.id, {
-              type: 'LLM_NAV_THEME_CHANGED',
+              type: 'LLM_NAV_UPDATE_THEME',
               theme: target.value
             }).catch(() => {
               // 忽略错误（某些标签页可能没有 content script）
