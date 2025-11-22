@@ -1,9 +1,7 @@
 // Background Service Worker
-console.log('LLM Answer Navigator: Background service worker started');
 
 // 监听快捷键命令
 chrome.commands.onCommand.addListener((command) => {
-  console.log('Command received:', command);
   
   // 获取当前活动的 tab
   chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
@@ -29,7 +27,8 @@ chrome.commands.onCommand.addListener((command) => {
       }
       
       chrome.tabs.sendMessage(tabs[0].id, message).catch((error) => {
-        console.error('Failed to send message to content script:', error);
+        // 静默处理错误，避免控制台污染
+        // 错误通常发生在content script未加载时
       });
     }
   });

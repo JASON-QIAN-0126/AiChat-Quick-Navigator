@@ -90,15 +90,8 @@ async function injectStyles(forceUpdate: boolean = false): Promise<void> {
  */
 export function scrollToAnswer(node: HTMLElement, topOffset: number = 80): void {
   if (!node) {
-    console.warn('⚠️ scrollToAnswer: 节点为空');
     return;
   }
-  
-  console.log('📍 滚动到回答节点:', {
-    tag: node.tagName,
-    text: node.textContent?.substring(0, 50) + '...',
-    offsetTop: node.offsetTop
-  });
   
   try {
     // 方法 1: 使用 scrollIntoView（最可靠）
@@ -118,11 +111,7 @@ export function scrollToAnswer(node: HTMLElement, topOffset: number = 80): void 
         });
       }
     }, 100);
-    
-    console.log('✅ 滚动命令已执行');
   } catch (error) {
-    console.error('❌ 滚动失败:', error);
-    
     // 备用方法：直接计算位置
     try {
       const rect = node.getBoundingClientRect();
@@ -133,9 +122,8 @@ export function scrollToAnswer(node: HTMLElement, topOffset: number = 80): void 
         top: targetPosition,
         behavior: 'smooth'
       });
-      console.log('✅ 使用备用滚动方法');
     } catch (backupError) {
-      console.error('❌ 备用滚动也失败:', backupError);
+      // 静默失败
     }
   }
 }

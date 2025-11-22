@@ -21,6 +21,9 @@ export class RightSideTimelineNavigator {
   
   // 当前主题
   private currentTheme: TimelineTheme = themes.light;
+  
+  // 防止 ResizeObserver 无限循环的标志
+  private isUpdatingPositions: boolean = false;
 
   constructor() {
     // 确保主题已初始化
@@ -38,7 +41,10 @@ export class RightSideTimelineNavigator {
     
     // 监听容器大小变化
     this.resizeObserver = new ResizeObserver(() => {
-      this.updateNodePositions();
+      // 防止递归触发
+      if (!this.isUpdatingPositions) {
+        this.updateNodePositions();
+      }
     });
     this.resizeObserver.observe(this.container);
 
@@ -57,7 +63,6 @@ export class RightSideTimelineNavigator {
     this.currentTheme = themes[themeType];
     // 缓存主题，防止构造函数加载时闪烁
     localStorage.setItem('llm_nav_theme_cache', themeType);
-    console.log(`🎨 Theme set to: ${themeType}`, this.currentTheme);
     
     // 更新时间线主干颜色
     this.timelineBar.style.backgroundColor = this.currentTheme.timelineBarColor;
@@ -78,7 +83,6 @@ export class RightSideTimelineNavigator {
     this.nodes.forEach((node, index) => {
       this.updateNodeStyle(node, index);
     });
-    console.log(`📌 Loaded pinned nodes for ${id}:`, this.pinnedNodes);
   }
 
   /**
@@ -305,7 +309,6 @@ export class RightSideTimelineNavigator {
       
       pressTimer = setTimeout(async () => {
         isLongPress = true;
-        console.log(`🖱️ Long press detected on node ${index}`);
         
         if (this.conversationId) {
           const nodeId = String(index);
@@ -398,7 +401,6 @@ export class RightSideTimelineNavigator {
     const currentCount = this.nodes.length;
 
     if (newCount === 0) {
-      console.warn('⚠️ Timeline: 没有对话条目');
       // 清空节点
       this.nodes.forEach(node => node.remove());
       this.nodes = [];
@@ -441,49 +443,56 @@ export class RightSideTimelineNavigator {
 
     // 3. 计算并更新所有节点位置（利用 CSS transition 实现平滑移动）
     this.updateNodePositions();
-
-    console.log(`✅ Timeline: 更新完成，当前 ${this.nodes.length} 个节点`);
   }
 
   /**
    * 更新所有节点的位置
-   * 采用“等间距分布”策略 (Even Distribution)：
+   * 采用"等间距分布"策略 (Even Distribution)：
    * - 第一个节点固定在顶部 (Padding 位置)
    * - 最后一个节点固定在底部 (ContainerHeight - Padding)
    * - 中间节点均匀分布
-   * - 这种方式类似“气泡”效果：新节点加入底部，旧节点自动向上挤压调整，且不再依赖页面 scrollHeight，彻底解决节点不可见问题
+   * - 这种方式类似"气泡"效果：新节点加入底部，旧节点自动向上挤压调整，且不再依赖页面 scrollHeight，彻底解决节点不可见问题
    */
   private updateNodePositions(): void {
-    const count = this.items.length;
-    if (count === 0) return;
+    // 防止递归触发 ResizeObserver
+    if (this.isUpdatingPositions) return;
+    this.isUpdatingPositions = true;
+    
+    try {
+      const count = this.items.length;
+      if (count === 0) return;
 
-    const containerHeight = this.container.clientHeight;
-    // 容器可能还没渲染出来
-    if (containerHeight === 0) return;
+      const containerHeight = this.container.clientHeight;
+      // 容器可能还没渲染出来
+      if (containerHeight === 0) return;
 
-    const padding = 30; // 上下留白
-    const usableHeight = containerHeight - padding * 2;
+      const padding = 30; // 上下留白
+      const usableHeight = containerHeight - padding * 2;
 
-    this.items.forEach((item, index) => {
-      const node = this.nodes[index];
-      if (!node) return;
+      this.items.forEach((item, index) => {
+        const node = this.nodes[index];
+        if (!node) return;
 
-      let topPosition = padding;
+        let topPosition = padding;
 
-      if (count === 1) {
-        // 如果只有一个节点，显示在顶部
-        topPosition = padding;
-      } else {
-        // 多个节点：按索引均匀分布
-        // 公式：Padding + (当前索引 / (总数 - 1)) * 可用高度
-        // index=0 -> 0% (Top)
-        // index=max -> 100% (Bottom)
-        const ratio = index / (count - 1);
-        topPosition = padding + ratio * usableHeight;
-      }
-      
-      node.style.top = `${topPosition}px`;
-    });
+        if (count === 1) {
+          // 如果只有一个节点，显示在顶部
+          topPosition = padding;
+        } else {
+          // 多个节点：按索引均匀分布
+          // 公式：Padding + (当前索引 / (总数 - 1)) * 可用高度
+          // index=0 -> 0% (Top)
+          // index=max -> 100% (Bottom)
+          const ratio = index / (count - 1);
+          topPosition = padding + ratio * usableHeight;
+        }
+        
+        node.style.top = `${topPosition}px`;
+      });
+    } finally {
+      // 确保标志位被重置
+      this.isUpdatingPositions = false;
+    }
   }
 
   /**
@@ -562,10 +571,8 @@ export class RightSideTimelineNavigator {
     
     if (newPinnedState) {
       this.pinnedNodes.add(nodeId);
-      console.log(`📌 快捷键：已标记节点 ${index}`);
     } else {
       this.pinnedNodes.delete(nodeId);
-      console.log(`📌 快捷键：取消标记节点 ${index}`);
     }
     
     // 更新样式

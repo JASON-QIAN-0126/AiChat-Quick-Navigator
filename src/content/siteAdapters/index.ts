@@ -34,14 +34,6 @@ export interface SiteAdapter {
   isSupported(location: Location): boolean;
   
   /**
-   * 在页面中查找所有用户问题节点（用于导航跳转）
-   * @param root - 根节点，通常是 document 或某个容器元素
-   * @returns 用户问题节点数组
-   * @deprecated 建议使用 getPromptAnswerPairs 获取完整的对话对
-   */
-  findAllAnswers(root: Document | HTMLElement): HTMLElement[];
-  
-  /**
    * 获取页面中所有的「用户问题 + AI 回答」配对
    * @param root - 根节点，通常是 document 或某个容器元素
    * @returns Prompt-Answer 配对数组
@@ -95,7 +87,6 @@ export function getActiveAdapter(location: Location, customUrls: string[] = []):
   if (customUrls.length > 0) {
     const hostname = location.hostname;
     if (customUrls.some(url => hostname === url || hostname.endsWith('.' + url))) {
-      console.log('Matched custom URL, using ChatGPT adapter');
       // 创建一个新的适配器实例，或者直接复用 ChatGPT 适配器
       // 这里我们通过 Object.create 复用，但修改 name
       const customAdapter = Object.create(chatgptAdapter);

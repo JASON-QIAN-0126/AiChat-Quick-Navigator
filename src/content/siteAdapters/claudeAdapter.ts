@@ -45,7 +45,6 @@ export const claudeAdapter: SiteAdapter = {
       });
     });
 
-    console.log(`🔍 Claude Adapter: 扫描到 ${pairs.length} 个用户问题`);
     return pairs;
   }
 };

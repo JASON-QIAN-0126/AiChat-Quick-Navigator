@@ -1,5 +1,4 @@
 // Options page script
-console.log('Options page loaded');
 
 // 配置键
 const CONFIG_KEYS = {
@@ -42,8 +41,6 @@ async function loadSettings(): Promise<void> {
     }
     
     renderCustomUrls(customUrls);
-    
-    console.log('设置已加载:', { enableChatGPT, enableClaude, enableGemini, uiTheme, customUrls });
   } catch (error) {
     console.error('加载设置失败:', error);
   }
@@ -141,7 +138,6 @@ async function saveSetting(key: string, value: any): Promise<void> {
   try {
     await chrome.storage.sync.set({ [key]: value });
     showSaveStatus();
-    console.log('设置已保存:', { [key]: value });
   } catch (error) {
     console.error('保存设置失败:', error);
   }

@@ -19,6 +19,10 @@ export class AnswerIndexManager {
   private currentIndex: number = 0;
   private adapter: SiteAdapter;
   private root: Document | HTMLElement;
+  
+  // 位置缓存，减少getBoundingClientRect调用
+  private positionCache: Map<number, { top: number, bottom: number, timestamp: number }> = new Map();
+  private readonly CACHE_VALIDITY_MS = 500; // 缓存有效期500ms
 
   constructor(adapter: SiteAdapter, root: Document | HTMLElement) {
     this.adapter = adapter;
@@ -44,6 +48,9 @@ export class AnswerIndexManager {
     
     // 计算相对位置
     this.updateRelativePositions();
+    
+    // 清除位置缓存
+    this.positionCache.clear();
   }
   
   /**
@@ -175,6 +182,38 @@ export class AnswerIndexManager {
   }
 
   /**
+   * 获取节点的缓存位置信息（如果缓存有效）
+   * @param index - 节点索引
+   * @returns 缓存的位置信息，如果缓存失效则返回null
+   */
+  private getCachedPosition(index: number): { top: number, bottom: number } | null {
+    const cached = this.positionCache.get(index);
+    if (!cached) return null;
+    
+    const now = Date.now();
+    if (now - cached.timestamp > this.CACHE_VALIDITY_MS) {
+      // 缓存过期，删除
+      this.positionCache.delete(index);
+      return null;
+    }
+    
+    return { top: cached.top, bottom: cached.bottom };
+  }
+  
+  /**
+   * 缓存节点的位置信息
+   * @param index - 节点索引
+   * @param rect - getBoundingClientRect结果
+   */
+  private cachePosition(index: number, rect: DOMRect): void {
+    this.positionCache.set(index, {
+      top: rect.top,
+      bottom: rect.bottom,
+      timestamp: Date.now()
+    });
+  }
+
+  /**
    * 根据当前滚动位置更新当前索引
    * 优化逻辑：实时检测 DOM 位置，找到视口中最相关的 Prompt
    * @param scrollY - 当前滚动位置（window.scrollY）
@@ -187,8 +226,8 @@ export class AnswerIndexManager {
     const windowHeight = window.innerHeight;
     
     // 实时检测每个 Prompt 的位置
-    // 我们要找的是：最后一个“顶部在视口中线及其上方”的节点
-    // 意图：用户正在阅读的内容，通常属于那个“标题还在上面”的章节
+    // 我们要找的是：最后一个"顶部在视口中线及其上方"的节点
+    // 意图：用户正在阅读的内容，通常属于那个"标题还在上面"的章节
     const viewportCenter = windowHeight / 2;
     let activeIndex = 0;
     
@@ -197,11 +236,22 @@ export class AnswerIndexManager {
       const node = this.items[i].promptNode;
       if (!node) continue;
       
-      const rect = node.getBoundingClientRect();
+      // 尝试使用缓存
+      let cachedPos = this.getCachedPosition(i);
+      let rectTop: number;
+      
+      if (cachedPos) {
+        rectTop = cachedPos.top;
+      } else {
+        // 缓存失效或不存在，重新计算
+        const rect = node.getBoundingClientRect();
+        this.cachePosition(i, rect);
+        rectTop = rect.top;
+      }
       
       // 如果节点的顶部在视口中线之前 (rect.top < viewportCenter)
       // 说明这个节点已经进入视野或者已经在上面了
-      if (rect.top < viewportCenter) {
+      if (rectTop < viewportCenter) {
         activeIndex = i;
       } else {
         // 一旦遇到一个节点在中线下面，后面的肯定也都在下面，直接结束
@@ -212,7 +262,6 @@ export class AnswerIndexManager {
     // 只有当索引真正改变时才更新
     if (this.currentIndex !== activeIndex) {
       this.currentIndex = activeIndex;
-      console.log(`📍 滚动检测: 切换到第 ${activeIndex + 1} 个 (实时位置)`);
     }
   }
 
