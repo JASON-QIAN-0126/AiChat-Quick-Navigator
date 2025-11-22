@@ -11,6 +11,7 @@ let initPromise: Promise<void> | null = null; // 存储当前初始化Promise
 let isListLocked = false; // 标记列表是否已锁定（固定总数）
 let isManualScrolling = false; // 标记是否正在进行点击导航滚动
 let contentMutationObserver: MutationObserver | null = null; // 监听页面变化的观察器引用
+let currentInitId = 0; // 初始化版本控制，防止竞态条件
 
 /**
  * 防抖函数
@@ -132,6 +133,9 @@ const handleScroll = debounce(() => {
  * 在重新初始化或切换对话时调用，移除旧的时间线节点
  */
 function clearUI(): void {
+  // 增加版本号，使所有正在进行的（旧）init 流程失效
+  currentInitId++;
+
   if (timelineNavigator) {
     timelineNavigator.destroy();
     timelineNavigator = null;
@@ -225,23 +229,44 @@ async function init() {
     return;
   }
   
+  // 锁定当前执行ID
+  const myInitId = ++currentInitId;
+
   // 创建初始化Promise
   initPromise = (async () => {
     // 先清理旧 UI，给用户一个"正在加载"的空白状态
-    clearUI();
+    // 注意：clearUI 会自增 currentInitId，所以这里不用调用它，或者调用后要重新同步 ID？
+    // 逻辑修正：clearUI() 应该在外部或者 init 开始前调用。但为了保持原有逻辑（init 内部清理），
+    // 我们在 clearUI 内部自增了 ID。
+    // 这里调用 clearUI 会导致 currentInitId 增加，所以我们需要在 clearUI 之后获取 ID，或者接受这个副作用。
+    // 更好的方式是：init() 开始时不调用 clearUI，或者 clearUI 是 init 的一部分。
+    // 原有逻辑是 init 内部调用 clearUI。
+    // 如果 clearUI 增加 ID，那么上面的 myInitId 就过时了。
+    // 调整策略：myInitId 应该在 clearUI 之后确定。
+    
+    // 但为了防止外部 clearUI 干扰，我们在 async 闭包内部再次检查。
+    // 让我们简单点：myInitId 在 async 内部确定。
+    
+    clearUI(); // 这会增加 currentInitId
+    const executionId = currentInitId; // 获取当前最新的 ID
     
     isInitializing = true;
     
     try {
     // 从存储中加载自定义 URL
     const settings = await chrome.storage.sync.get(['custom_urls', 'enable_chatgpt', 'enable_claude', 'enable_gemini']);
+    
+    // 关键检查：如果在 await 期间被外部再次调用了 clearUI/init，则终止
+    if (executionId !== currentInitId) return;
+
     const customUrls = settings.custom_urls || [];
     
     // 获取当前页面适配的站点适配器
     const adapter = getActiveAdapter(window.location, customUrls);
     
     if (!adapter) {
-      isInitializing = false;
+      // 只有当我是最新的 init 时，才重置标志
+      if (executionId === currentInitId) isInitializing = false;
       return;
     }
     
@@ -256,7 +281,7 @@ async function init() {
     }
 
     if (!isEnabled) {
-      isInitializing = false;
+      if (executionId === currentInitId) isInitializing = false;
       return;
     }
   
@@ -301,6 +326,8 @@ async function init() {
   }
 
   contentMutationObserver = new MutationObserver(debounce(() => {
+    // 再次检查 ID，确保回调仍然有效（虽然 destroy 会断开 observer，但防抖可能导致延迟执行）
+    if (executionId !== currentInitId) return;
     if (!indexManager) return;
 
     // 如果列表已锁定，检查是否是新消息（数量增加）
@@ -357,6 +384,8 @@ async function init() {
   // 如果初次扫描未找到问题，5秒后停止自动刷新
   if (totalCount === 0) {
     setTimeout(() => {
+      // 再次检查 ID
+      if (executionId !== currentInitId) return;
       if (!isListLocked) {
         isListLocked = true;
       }
@@ -364,8 +393,11 @@ async function init() {
   }
   
   } finally {
-    isInitializing = false;
-    initPromise = null; // 清除Promise引用
+    // 只有当我是最新的 init 时，才重置标志
+    if (executionId === currentInitId) {
+      isInitializing = false;
+      initPromise = null; // 清除Promise引用
+    }
   }
   })();
   
