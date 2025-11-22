@@ -131,16 +131,20 @@ if (document.readyState === 'loading') {
   init();
 }
 
-// 监听来自 background 的消息
+// 监听来自 background 的消息（快捷键触发）
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   console.log('Message received in content script:', message);
   
   if (message.type === 'LLM_NAV_PREV_ANSWER') {
-    console.log('Navigate to previous answer');
-    // 后续实现
+    console.log('快捷键触发：导航到上一条回答');
+    navigateToPrev();
+    sendResponse({ success: true });
   } else if (message.type === 'LLM_NAV_NEXT_ANSWER') {
-    console.log('Navigate to next answer');
-    // 后续实现
+    console.log('快捷键触发：导航到下一条回答');
+    navigateToNext();
+    sendResponse({ success: true });
   }
+  
+  return true; // 保持消息通道打开
 });
 
