@@ -66,23 +66,53 @@ function navigateToAnswer(index: number): void {
     return;
   }
   
-  // 标记开始手动导航，暂时屏蔽滚动监听的干扰
+  // 1. 禁用 Observer 自动更新
+  // 防止自动滚动过程中 IntersectionObserver 错误地更新索引
+  indexManager.setScrollUpdateEnabled(false);
   isManualScrolling = true;
   
+  // 2. 设置索引并执行滚动
   indexManager.setCurrentIndex(index);
   const node = indexManager.getCurrentNode();
   
   if (node) {
-    // 使用滚动和高亮模块
     scrollToAndHighlight(node);
   }
   
-  // 更新 UI 显示
+  // 3. 更新 UI 显示
   updateUI();
   
-  // 1秒后释放锁（给足够的时间让滚动动画完成）
-  setTimeout(() => {
+  // 4. 恢复逻辑：监听用户交互或超时
+  // 定义恢复函数
+  const restoreScrollTracking = () => {
+    if (!indexManager) return;
+    
     isManualScrolling = false;
+    indexManager.setScrollUpdateEnabled(true);
+    
+    // 移除监听器
+    cleanupListeners();
+  };
+  
+  // 监听用户交互事件（一旦用户手动介入，立即恢复跟踪）
+  const userInteractionEvents = ['wheel', 'touchmove', 'keydown', 'mousedown'];
+  const cleanupListeners = () => {
+    userInteractionEvents.forEach(event => {
+      window.removeEventListener(event, restoreScrollTracking, { capture: true });
+    });
+  };
+  
+  userInteractionEvents.forEach(event => {
+    window.addEventListener(event, restoreScrollTracking, { capture: true, passive: true });
+  });
+  
+  // 5. 保底机制：如果用户一直不操作，1秒后自动恢复
+  // 考虑到平滑滚动可能需要时间，1秒通常足够
+  setTimeout(() => {
+    // 只有当仍然处于手动滚动状态时才恢复，避免覆盖了用户的早期介入
+    if (isManualScrolling) {
+      restoreScrollTracking();
+    }
   }, 1000);
 }
 

@@ -27,10 +27,21 @@ export class AnswerIndexManager {
   private intersectionObserver: IntersectionObserver | null = null;
   private onIndexChangeCallback: ((index: number) => void) | null = null;
 
+  // 是否允许滚动更新（默认为 true）
+  private scrollUpdateEnabled: boolean = true;
+
   constructor(adapter: SiteAdapter, root: Document | HTMLElement) {
     this.adapter = adapter;
     this.root = root;
     this.refresh();
+  }
+
+  /**
+   * 设置是否允许滚动更新索引
+   * 当点击导航时，应暂时禁用，以防止滚动过程中触发错误的索引更新
+   */
+  setScrollUpdateEnabled(enabled: boolean): void {
+    this.scrollUpdateEnabled = enabled;
   }
 
   /**
@@ -78,6 +89,9 @@ export class AnswerIndexManager {
     // rootMargin 设置为中间一条线（稍微有一点厚度以防跳过）
     // 当 Prompt 从下面上来进入中线，或者从上面下来进入中线，都会触发
     this.intersectionObserver = new IntersectionObserver((entries) => {
+      // 如果禁用了滚动更新，直接忽略
+      if (!this.scrollUpdateEnabled) return;
+
       // 找出所有 intersecting 的 entry
       const intersectingEntries = entries.filter(e => e.isIntersecting);
       
