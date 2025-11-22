@@ -34,7 +34,6 @@ export const geminiAdapter: SiteAdapter = {
       });
     });
 
-    console.log(`🔍 Gemini Adapter: 扫描到 ${pairs.length} 个用户问题`);
     return pairs;
   }
 };

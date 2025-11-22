@@ -95,7 +95,6 @@ export function getActiveAdapter(location: Location, customUrls: string[] = []):
   if (customUrls.length > 0) {
     const hostname = location.hostname;
     if (customUrls.some(url => hostname === url || hostname.endsWith('.' + url))) {
-      console.log('Matched custom URL, using ChatGPT adapter');
       // 创建一个新的适配器实例，或者直接复用 ChatGPT 适配器
       // 这里我们通过 Object.create 复用，但修改 name
       const customAdapter = Object.create(chatgptAdapter);

@@ -113,22 +113,6 @@ export const chatgptAdapter: SiteAdapter = {
     // 去重
     const uniqueQuestions = Array.from(new Set(userQuestions));
     
-    // 调试信息
-    if (uniqueQuestions.length > 0) {
-      console.log(`✅ ChatGPT Adapter: 找到 ${uniqueQuestions.length} 个用户问题节点 [方法: ${foundMethods.join(', ')}]`);
-      if (uniqueQuestions.length > 0) {
-        console.log('第一个问题节点:', {
-          tag: uniqueQuestions[0].tagName,
-          classes: uniqueQuestions[0].className,
-          textPreview: uniqueQuestions[0].textContent?.substring(0, 50) + '...',
-          hasTextarea: !!uniqueQuestions[0].querySelector('textarea'),
-          hasForm: !!uniqueQuestions[0].querySelector('form')
-        });
-      }
-    } else {
-      console.warn('⚠️ ChatGPT Adapter: 未找到任何用户问题节点，请检查页面结构');
-    }
-    
     return uniqueQuestions;
   },
 
@@ -189,8 +173,6 @@ export const chatgptAdapter: SiteAdapter = {
       isValidNode(el)
     ) as HTMLElement[];
 
-    console.log(`🔍 ChatGPT Adapter: 扫描到 ${userMessages.length} 个用户问题`);
-
     // 3. 为每个用户问题构建配对
     userMessages.forEach((userMsg, index) => {
       const promptText = extractText(userMsg);
@@ -221,13 +203,6 @@ export const chatgptAdapter: SiteAdapter = {
         topOffset: getTopOffset(userMsg) // 关键：位置以 prompt 为准
       });
     });
-    
-    // 调试信息
-    if (pairs.length > 0) {
-      console.log(`✅ ChatGPT Adapter: 成功构建 ${pairs.length} 个导航节点`);
-    } else {
-      console.warn('⚠️ ChatGPT Adapter: 未生成任何导航节点，请检查 data-message-author-role="user" 选择器是否有效');
-    }
     
     return pairs;
   }
