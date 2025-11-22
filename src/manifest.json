@@ -9,7 +9,7 @@
     "storage"
   ],
   "background": {
-    "service_worker": "background.js"
+    "service_worker": "background/index.js"
   },
   "content_scripts": [
     {
@@ -19,7 +19,7 @@
         "https://gemini.google.com/*"
       ],
       "js": [
-        "content.js"
+        "content/index.js"
       ]
     }
   ],
@@ -53,8 +53,8 @@
       "description": "Toggle Pin for current answer"
     }
   },
-  "options_page": "options.html",
+  "options_page": "options/index.html",
   "action": {
-    "default_popup": "popup.html"
+    "default_popup": "popup/index.html"
   }
 }
