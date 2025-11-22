@@ -35,8 +35,7 @@ export class AnswerIndexManager {
     
     // 转换为 PromptAnswerItem，已经包含 topOffset
     this.items = pairs.map(pair => ({
-      ...pair,
-      // relativePosition 稍后在需要时计算
+      ...pair
     }));
 
     // 按 topOffset 排序（已经由适配器排序，这里再确认一次）
@@ -52,7 +51,7 @@ export class AnswerIndexManager {
   private updateRelativePositions(): void {
     // 优先使用 scrollHeight，如果为 0 则给一个默认值防止除以零
     const documentHeight = document.documentElement.scrollHeight || document.body.scrollHeight || 1000;
-    
+
     this.items.forEach(item => {
       if (this.items.length === 1) {
         item.relativePosition = 0; // 只有一个节点时置顶
@@ -185,35 +184,39 @@ export class AnswerIndexManager {
     }
 
     const windowHeight = window.innerHeight;
-    
-    // 实时检测每个 Prompt 的位置
-    // 我们要找的是：最后一个“顶部在视口中线及其上方”的节点
-    // 意图：用户正在阅读的内容，通常属于那个“标题还在上面”的章节
-    const viewportCenter = windowHeight / 2;
-    let activeIndex = 0;
-    
-    // 找到所有位于中线以上的节点
-    for (let i = 0; i < this.items.length; i++) {
-      const node = this.items[i].promptNode;
-      if (!node) continue;
-      
-      const rect = node.getBoundingClientRect();
-      
-      // 如果节点的顶部在视口中线之前 (rect.top < viewportCenter)
-      // 说明这个节点已经进入视野或者已经在上面了
-      if (rect.top < viewportCenter) {
-        activeIndex = i;
-      } else {
-        // 一旦遇到一个节点在中线下面，后面的肯定也都在下面，直接结束
-        break;
-      }
-    }
-    
+    const target = scrollY + windowHeight / 2;
+    const activeIndex = this.findIndexByPosition(target);
+
     // 只有当索引真正改变时才更新
     if (this.currentIndex !== activeIndex) {
       this.currentIndex = activeIndex;
       console.log(`📍 滚动检测: 切换到第 ${activeIndex + 1} 个 (实时位置)`);
     }
+  }
+
+  /**
+   * 使用二分查找获取当前位置对应的索引
+   * @param position - 当前滚动目标位置（绝对坐标）
+   */
+  private findIndexByPosition(position: number): number {
+    let low = 0;
+    let high = this.items.length - 1;
+    let result = 0;
+
+    while (low <= high) {
+      const mid = Math.floor((low + high) / 2);
+      const item = this.items[mid];
+      const topOffset = item.topOffset ?? this.getTopOffset(item.promptNode);
+
+      if (topOffset <= position) {
+        result = mid;
+        low = mid + 1;
+      } else {
+        high = mid - 1;
+      }
+    }
+
+    return result;
   }
 
   /**
