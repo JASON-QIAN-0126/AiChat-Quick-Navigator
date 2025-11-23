@@ -2,7 +2,13 @@
   "manifest_version": 3,
   "name": "Ai Chat Quick Navigator",
   "version": "1.0.0",
-  "description": "AI 对话快捷导航助手。支持 ChatGPT、Claude、Gemini、DeepSeek，提供快捷键跳转、侧边时间线导航和重点对话标记功能。",
+  "description": "简约的设计、便捷的操作、多样的主题，为ChatGPT、Claude、Gemini、DeepSeek提供快捷的定位、跳转、重点标记。",
+  "icons": {
+    "16": "icon16.png",
+    "32": "icon32.png",
+    "48": "icon48.png",
+    "128": "icon128.png"
+  },
   "permissions": [
     "tabs",
     "scripting",
@@ -56,6 +62,12 @@
   },
   "options_page": "options/index.html",
   "action": {
-    "default_popup": "popup/index.html"
+    "default_popup": "popup/index.html",
+    "default_icon": {
+      "16": "icon16.png",
+      "32": "icon32.png",
+      "48": "icon48.png",
+      "128": "icon128.png"
+    }
   }
 }

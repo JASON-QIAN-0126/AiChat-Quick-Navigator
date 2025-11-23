@@ -1,4 +1,4 @@
-<h1 align="center">AI Chat Prompt Quick Navigator</h1>
+<h1 align="center">AI Chat Quick Navigator</h1>
 
 <p align="center">
   <strong>让 AI 对话导航变得简单高效</strong>
