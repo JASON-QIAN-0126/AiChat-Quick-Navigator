@@ -5,7 +5,7 @@ export const messages = {
     // Options Page
     'options.title': '设置 - Ai Chat Quick jump',
     'options.header.title': 'Ai Chat Quick jump',
-    'options.header.subtitle': '在与AI对话页面中快速导航',
+    'options.header.subtitle': '在与AI对话页面中快速导航，标记，收藏对话',
     'options.settings': '设置',
     'options.language': '语言 / Language',
     'options.language.desc': '选择界面语言',
@@ -38,7 +38,7 @@ export const messages = {
 
     // Popup Page
     'popup.title': 'Ai Chat Quick jump',
-    'popup.desc': '在对话页面中快速导航 AI 回答',
+    'popup.desc': '在与AI对话页面中快速导航，标记，收藏回答',
     'popup.shortcuts': '快捷键 (Shortcuts)',
     'popup.switch': '↕️ 切换回答',
     'popup.mark': '📌 标记/取消',
@@ -52,7 +52,7 @@ export const messages = {
     // Options Page
     'options.title': 'Settings - Ai Chat Quick jump',
     'options.header.title': 'Ai Chat Quick jump',
-    'options.header.subtitle': 'Quickly navigate in AI conversation pages',
+    'options.header.subtitle': 'Quickly navigate, mark, and collect conversations in AI conversation pages',
     'options.settings': 'Settings',
     'options.language': 'Language / 语言',
     'options.language.desc': 'Select interface language',
@@ -85,7 +85,7 @@ export const messages = {
 
     // Popup Page
     'popup.title': 'Ai Chat Quick jump',
-    'popup.desc': 'Quickly navigate AI answers in conversation pages',
+    'popup.desc': 'Quickly navigate, mark, and collect answers in AI conversation pages',
     'popup.shortcuts': 'Shortcuts',
     'popup.switch': '↕️ Switch Answer',
     'popup.mark': '📌 Toggle Pin',

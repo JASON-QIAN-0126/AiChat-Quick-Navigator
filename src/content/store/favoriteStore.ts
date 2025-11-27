@@ -77,6 +77,7 @@ export const FavoriteStore = {
    * @param conversationId 对话 ID
    * @param url 当前页面 URL
    * @param siteName 站点名称
+   * @param chatTitle 整个对话的标题（第一个问题的缩略）
    * @param pinnedItems 被标记的节点信息数组 [{index, promptText}]
    * @returns 是否成功收藏（如果已存在则更新）
    */
@@ -84,6 +85,7 @@ export const FavoriteStore = {
     conversationId: string,
     url: string,
     siteName: string,
+    chatTitle: string,
     pinnedItems: Array<{ index: number; promptText: string }>
   ): Promise<boolean> {
     const all = await this.loadAll();
@@ -98,17 +100,15 @@ export const FavoriteStore = {
       timestamp: now
     }));
     
-    // 生成标题（使用第一个收藏项的文本，截取前30字符）
-    const title = pinnedItems.length > 0 
-      ? (pinnedItems[0].promptText.length > 30 
-          ? pinnedItems[0].promptText.substring(0, 30) + '...' 
-          : pinnedItems[0].promptText)
-      : '未命名对话';
+    // 使用传入的 chatTitle，截取前40字符
+    const title = chatTitle.length > 40 
+      ? chatTitle.substring(0, 40) + '...' 
+      : chatTitle;
     
     const conversation: FavoriteConversation = {
       conversationId,
       url,
-      title,
+      title: title || '未命名对话',
       items,
       updatedAt: now,
       siteName
@@ -121,6 +121,30 @@ export const FavoriteStore = {
       // 添加新收藏
       all.push(conversation);
     }
+    
+    await this.saveAll(all);
+    return true;
+  },
+
+  /**
+   * 更新收藏的子项（同步标记节点）
+   */
+  async updateFavoriteItems(
+    conversationId: string,
+    pinnedItems: Array<{ index: number; promptText: string }>
+  ): Promise<boolean> {
+    const all = await this.loadAll();
+    const conversation = all.find(c => c.conversationId === conversationId);
+    
+    if (!conversation) return false;
+    
+    const now = Date.now();
+    conversation.items = pinnedItems.map(item => ({
+      nodeIndex: item.index,
+      promptText: item.promptText,
+      timestamp: now
+    }));
+    conversation.updatedAt = now;
     
     await this.saveAll(all);
     return true;

@@ -216,6 +216,28 @@ function clearUI(): void {
 }
 
 /**
+ * 检查 URL 参数并跳转到收藏的节点位置
+ */
+function checkAndNavigateToFavoriteIndex(): void {
+  const url = new URL(window.location.href);
+  const navIndex = url.searchParams.get('llm_nav_index');
+  
+  if (navIndex !== null) {
+    const index = parseInt(navIndex, 10);
+    if (!isNaN(index) && index >= 0) {
+      // 延迟执行，确保时间线已完全初始化
+      setTimeout(() => {
+        navigateToAnswer(index);
+      }, 500);
+    }
+    
+    // 清理 URL 参数，避免刷新时重复跳转
+    url.searchParams.delete('llm_nav_index');
+    window.history.replaceState({}, '', url.toString());
+  }
+}
+
+/**
  * 从 URL 或页面中获取对话 ID
  */
 function getConversationId(): string {
@@ -396,6 +418,9 @@ async function init() {
   // ========== 初始化右侧时间线导航器 (仅当找到节点时) ==========
   if (totalCount > 0) {
     initTimelinejump();
+    
+    // 检查 URL 参数，处理从收藏跳转过来的情况
+    checkAndNavigateToFavoriteIndex();
   }
   // ========== 时间线初始化逻辑调整结束 ==========
   

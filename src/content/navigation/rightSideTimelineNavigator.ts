@@ -281,16 +281,50 @@ export class RightSideTimelinejump {
         });
       }
       
+      // 获取整个对话的标题（使用第一个问题的文本）
+      const chatTitle = this.items.length > 0 ? this.items[0].promptText : '未命名对话';
+      
       await FavoriteStore.favoriteConversation(
         this.conversationId,
         this.currentUrl,
         this.siteName || 'Unknown',
+        chatTitle,
         pinnedItems
       );
       this.isFavorited = true;
     }
     
     this.updateTopStarStyle();
+  }
+
+  /**
+   * 同步标记节点到收藏（当标记状态变化时调用）
+   */
+  async syncPinnedToFavorites(): Promise<void> {
+    if (!this.conversationId || !this.isFavorited) return;
+    
+    // 收集当前所有被标记的节点
+    const pinnedItems: Array<{ index: number; promptText: string }> = [];
+    
+    this.pinnedNodes.forEach(nodeId => {
+      const index = parseInt(nodeId);
+      if (this.items[index]) {
+        pinnedItems.push({
+          index,
+          promptText: this.items[index].promptText
+        });
+      }
+    });
+    
+    // 如果没有标记的节点了，保留第一个节点作为代表
+    if (pinnedItems.length === 0 && this.items.length > 0) {
+      pinnedItems.push({
+        index: 0,
+        promptText: this.items[0].promptText
+      });
+    }
+    
+    await FavoriteStore.updateFavoriteItems(this.conversationId, pinnedItems);
   }
 
   /**
@@ -333,9 +367,10 @@ export class RightSideTimelinejump {
       top: '50%',
       left: '50%',
       transform: 'translate(-50%, -50%)',
-      width: '400px',
+      width: '520px',
       maxWidth: '90vw',
-      maxHeight: '70vh',
+      maxHeight: '80vh',
+      minHeight: '400px',
       backgroundColor: this.currentTheme.tooltipBackgroundColor,
       color: this.currentTheme.tooltipTextColor,
       borderRadius: '12px',
@@ -432,14 +467,24 @@ export class RightSideTimelinejump {
    * 创建对话收藏项
    */
   private createConversationItem(conv: FavoriteConversation): HTMLElement {
+    const theme = this.currentTheme;
     const item = document.createElement('div');
     item.className = 'favorite-conversation';
+    
+    // 根据主题计算背景色
+    const itemBgColor = theme.name === '暗色' 
+      ? 'rgba(255,255,255,0.08)' 
+      : 'rgba(0,0,0,0.04)';
+    const itemHoverBgColor = theme.name === '暗色' 
+      ? 'rgba(255,255,255,0.12)' 
+      : 'rgba(0,0,0,0.08)';
     
     Object.assign(item.style, {
       marginBottom: '12px',
       borderRadius: '8px',
-      backgroundColor: 'rgba(128,128,128,0.1)',
-      overflow: 'hidden'
+      backgroundColor: itemBgColor,
+      overflow: 'hidden',
+      border: `1px solid ${theme.timelineBarColor}`
     });
     
     // 对话标题行（可展开）
@@ -447,9 +492,17 @@ export class RightSideTimelinejump {
     Object.assign(titleRow.style, {
       display: 'flex',
       alignItems: 'center',
-      padding: '12px',
+      padding: '12px 14px',
       cursor: 'pointer',
-      gap: '8px'
+      gap: '10px',
+      transition: 'background-color 0.2s'
+    });
+    
+    titleRow.addEventListener('mouseenter', () => {
+      titleRow.style.backgroundColor = itemHoverBgColor;
+    });
+    titleRow.addEventListener('mouseleave', () => {
+      titleRow.style.backgroundColor = 'transparent';
     });
     
     const expandIcon = document.createElement('span');
@@ -457,7 +510,8 @@ export class RightSideTimelinejump {
     Object.assign(expandIcon.style, {
       fontSize: '10px',
       transition: 'transform 0.2s',
-      opacity: '0.6'
+      opacity: '0.6',
+      color: theme.tooltipTextColor
     });
     
     const titleText = document.createElement('span');
@@ -467,17 +521,20 @@ export class RightSideTimelinejump {
       overflow: 'hidden',
       textOverflow: 'ellipsis',
       whiteSpace: 'nowrap',
-      fontSize: '14px'
+      fontSize: '14px',
+      fontWeight: '500',
+      color: theme.tooltipTextColor
     });
     
     const siteTag = document.createElement('span');
     siteTag.textContent = conv.siteName;
     Object.assign(siteTag.style, {
       fontSize: '11px',
-      padding: '2px 6px',
-      backgroundColor: 'rgba(128,128,128,0.2)',
+      padding: '3px 8px',
+      backgroundColor: theme.activeColor,
+      color: '#fff',
       borderRadius: '4px',
-      opacity: '0.7'
+      fontWeight: '500'
     });
     
     titleRow.appendChild(expandIcon);
@@ -488,35 +545,46 @@ export class RightSideTimelinejump {
     const subItems = document.createElement('div');
     Object.assign(subItems.style, {
       display: 'none',
-      padding: '0 12px 12px 28px'
+      padding: '0 14px 14px 32px'
     });
     
     conv.items.forEach(subItem => {
       const subItemEl = document.createElement('div');
+      const subItemBgColor = theme.name === '暗色' 
+        ? 'rgba(255,255,255,0.05)' 
+        : 'rgba(0,0,0,0.03)';
+      const subItemHoverBgColor = theme.name === '暗色' 
+        ? 'rgba(255,255,255,0.1)' 
+        : 'rgba(0,0,0,0.06)';
+      
       Object.assign(subItemEl.style, {
-        padding: '8px 12px',
-        marginTop: '4px',
-        backgroundColor: 'rgba(128,128,128,0.1)',
+        padding: '10px 14px',
+        marginTop: '6px',
+        backgroundColor: subItemBgColor,
         borderRadius: '6px',
         cursor: 'pointer',
         fontSize: '13px',
         overflow: 'hidden',
         textOverflow: 'ellipsis',
         whiteSpace: 'nowrap',
-        transition: 'background-color 0.2s'
+        transition: 'all 0.2s',
+        color: theme.tooltipTextColor,
+        borderLeft: `3px solid ${theme.pinnedColor}`
       });
       
       // 截取文本，确保一行显示
-      const displayText = subItem.promptText.length > 40 
-        ? subItem.promptText.substring(0, 40) + '...'
+      const displayText = subItem.promptText.length > 50 
+        ? subItem.promptText.substring(0, 50) + '...'
         : subItem.promptText;
       subItemEl.textContent = displayText;
       
       subItemEl.addEventListener('mouseenter', () => {
-        subItemEl.style.backgroundColor = 'rgba(128,128,128,0.2)';
+        subItemEl.style.backgroundColor = subItemHoverBgColor;
+        subItemEl.style.transform = 'translateX(4px)';
       });
       subItemEl.addEventListener('mouseleave', () => {
-        subItemEl.style.backgroundColor = 'rgba(128,128,128,0.1)';
+        subItemEl.style.backgroundColor = subItemBgColor;
+        subItemEl.style.transform = 'translateX(0)';
       });
       
       subItemEl.addEventListener('click', (e) => {
@@ -535,7 +603,7 @@ export class RightSideTimelinejump {
       expandIcon.style.transform = isExpanded ? 'rotate(90deg)' : 'rotate(0deg)';
     });
     
-    // 标题行点击跳转到对话
+    // 标题行双击跳转到对话
     titleRow.addEventListener('dblclick', (e) => {
       e.stopPropagation();
       this.navigateToFavorite(conv, conv.items[0]?.nodeIndex || 0);
@@ -879,6 +947,9 @@ export class RightSideTimelinejump {
           
           this.updateNodeStyle(node, index);
           
+          // 同步到收藏
+          this.syncPinnedToFavorites();
+          
           // 震动反馈 (如果支持)
           if (navigator.vibrate) {
             try { navigator.vibrate(50); } catch (e) {}
@@ -1169,6 +1240,9 @@ export class RightSideTimelinejump {
     
     // 更新样式
     this.updateNodeStyle(this.nodes[index], index);
+    
+    // 同步到收藏
+    this.syncPinnedToFavorites();
     
     // 震动反馈
     if (navigator.vibrate) {

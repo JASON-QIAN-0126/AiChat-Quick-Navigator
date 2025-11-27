@@ -1,10 +1,10 @@
 {
   "extensionName": {
-    "message": "Ai Chat Quick jump",
+    "message": "AiChat Quickjump: 最美观便捷自由的AI对话跳转收藏: Chatgpt、Gemini、Grok等",
     "description": "插件名称"
   },
   "extensionDescription": {
-    "message": "为ChatGPT、Gemini等主流AI网站提供快捷的对话跳转、标记与收藏功能，支持快捷键定制、主题定制甚至自定义网站支持。",
+    "message": "为ChatGPT、Gemini、Grok等主流AI网站提供快捷的对话跳转、标记与收藏功能，支持快捷键定制、主题定制甚至自定义网站支持。",
     "description": "插件描述"
   },
   "cmdPrevAnswer": {
