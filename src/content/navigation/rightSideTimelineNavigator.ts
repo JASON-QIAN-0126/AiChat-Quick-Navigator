@@ -437,7 +437,7 @@ export class RightSideTimelinejump {
     });
     
     const title = document.createElement('h3');
-    title.textContent = '⭐ 收藏列表';
+    title.textContent = '收藏列表';
     Object.assign(title.style, {
       margin: '0',
       fontSize: '16px',
@@ -561,6 +561,7 @@ export class RightSideTimelinejump {
     
     const titleText = document.createElement('span');
     titleText.textContent = conv.title;
+    titleText.title = '双击编辑标题';
     Object.assign(titleText.style, {
       flex: '1',
       overflow: 'hidden',
@@ -568,8 +569,87 @@ export class RightSideTimelinejump {
       whiteSpace: 'nowrap',
       fontSize: '14px',
       fontWeight: '500',
-      color: theme.tooltipTextColor
+      color: theme.tooltipTextColor,
+      cursor: 'text'
     });
+    
+    // 编辑按钮
+    const editBtn = document.createElement('button');
+    editBtn.innerHTML = '✏️';
+    editBtn.title = '编辑标题';
+    Object.assign(editBtn.style, {
+      background: 'none',
+      border: 'none',
+      fontSize: '12px',
+      cursor: 'pointer',
+      padding: '2px 4px',
+      opacity: '0.4',
+      transition: 'opacity 0.2s'
+    });
+    editBtn.addEventListener('mouseenter', () => {
+      editBtn.style.opacity = '1';
+    });
+    editBtn.addEventListener('mouseleave', () => {
+      editBtn.style.opacity = '0.4';
+    });
+    
+    // 编辑标题的函数
+    const startEditTitle = (e: Event) => {
+      e.stopPropagation();
+      
+      // 创建输入框替换标题
+      const input = document.createElement('input');
+      input.type = 'text';
+      input.value = conv.title;
+      Object.assign(input.style, {
+        flex: '1',
+        fontSize: '14px',
+        fontWeight: '500',
+        color: theme.tooltipTextColor,
+        backgroundColor: 'transparent',
+        border: `1px solid ${theme.activeColor}`,
+        borderRadius: '4px',
+        padding: '2px 6px',
+        outline: 'none',
+        minWidth: '100px'
+      });
+      
+      // 保存编辑
+      const saveEdit = async () => {
+        const newTitle = input.value.trim();
+        if (newTitle && newTitle !== conv.title) {
+          await FavoriteStore.updateTitle(conv.conversationId, newTitle);
+          conv.title = newTitle;
+          titleText.textContent = newTitle;
+        }
+        // 恢复显示
+        input.replaceWith(titleText);
+      };
+      
+      // 取消编辑
+      const cancelEdit = () => {
+        input.replaceWith(titleText);
+      };
+      
+      input.addEventListener('blur', saveEdit);
+      input.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          saveEdit();
+        } else if (e.key === 'Escape') {
+          cancelEdit();
+        }
+      });
+      
+      titleText.replaceWith(input);
+      input.focus();
+      input.select();
+    };
+    
+    // 双击标题文本编辑
+    titleText.addEventListener('dblclick', startEditTitle);
+    // 点击编辑按钮编辑
+    editBtn.addEventListener('click', startEditTitle);
     
     const siteTag = document.createElement('span');
     siteTag.textContent = conv.siteName;
@@ -616,6 +696,7 @@ export class RightSideTimelinejump {
     
     titleRow.appendChild(expandIcon);
     titleRow.appendChild(titleText);
+    titleRow.appendChild(editBtn);
     titleRow.appendChild(siteTag);
     titleRow.appendChild(deleteBtn);
     
@@ -729,11 +810,7 @@ export class RightSideTimelinejump {
       expandIcon.style.transform = isExpanded ? 'rotate(90deg)' : 'rotate(0deg)';
     });
     
-    // 标题行双击跳转到对话
-    titleRow.addEventListener('dblclick', (e) => {
-      e.stopPropagation();
-      this.navigateToFavorite(conv, conv.items[0]?.nodeIndex || 0);
-    });
+    // 移除了标题行双击跳转（与编辑冲突），用户可通过点击子项跳转
     
     item.appendChild(titleRow);
     item.appendChild(subItems);

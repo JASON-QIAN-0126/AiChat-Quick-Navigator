@@ -173,6 +173,22 @@ export const FavoriteStore = {
   },
 
   /**
+   * 更新收藏的标题
+   */
+  async updateTitle(conversationId: string, newTitle: string): Promise<boolean> {
+    const all = await this.loadAll();
+    const conversation = all.find(c => c.conversationId === conversationId);
+    
+    if (!conversation) return false;
+    
+    conversation.title = newTitle;
+    conversation.updatedAt = Date.now();
+    
+    await this.saveAll(all);
+    return true;
+  },
+
+  /**
    * 删除收藏中的单个节点
    */
   async removeItem(conversationId: string, nodeIndex: number): Promise<boolean> {
