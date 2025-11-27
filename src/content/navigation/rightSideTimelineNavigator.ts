@@ -561,7 +561,7 @@ export class RightSideTimelinejump {
     
     const titleText = document.createElement('span');
     titleText.textContent = conv.title;
-    titleText.title = '双击编辑标题';
+    titleText.title = '点击进入对话';
     Object.assign(titleText.style, {
       flex: '1',
       overflow: 'hidden',
@@ -570,21 +570,30 @@ export class RightSideTimelinejump {
       fontSize: '14px',
       fontWeight: '500',
       color: theme.tooltipTextColor,
-      cursor: 'text'
+      cursor: 'pointer'
     });
     
-    // 编辑按钮
+    // 点击标题跳转到对话
+    titleText.addEventListener('click', (e) => {
+      e.stopPropagation();
+      this.navigateToFavorite(conv, conv.items[0]?.nodeIndex || 0);
+    });
+    
+    // 编辑按钮（简笔画铅笔图标）
     const editBtn = document.createElement('button');
-    editBtn.innerHTML = '✏️';
+    editBtn.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>`;
     editBtn.title = '编辑标题';
     Object.assign(editBtn.style, {
       background: 'none',
       border: 'none',
-      fontSize: '12px',
       cursor: 'pointer',
-      padding: '2px 4px',
+      padding: '4px',
       opacity: '0.4',
-      transition: 'opacity 0.2s'
+      transition: 'opacity 0.2s',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      color: theme.tooltipTextColor
     });
     editBtn.addEventListener('mouseenter', () => {
       editBtn.style.opacity = '1';
@@ -646,40 +655,30 @@ export class RightSideTimelinejump {
       input.select();
     };
     
-    // 双击标题文本编辑
-    titleText.addEventListener('dblclick', startEditTitle);
     // 点击编辑按钮编辑
     editBtn.addEventListener('click', startEditTitle);
     
-    const siteTag = document.createElement('span');
-    siteTag.textContent = conv.siteName;
-    Object.assign(siteTag.style, {
-      fontSize: '11px',
-      padding: '3px 8px',
-      backgroundColor: theme.activeColor,
-      color: '#fff',
-      borderRadius: '4px',
-      fontWeight: '500'
-    });
-    
-    // 删除父项按钮
+    // 删除父项按钮（简笔画垃圾桶图标）
     const deleteBtn = document.createElement('button');
-    deleteBtn.innerHTML = '🗑️';
+    deleteBtn.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg>`;
     deleteBtn.title = '删除此收藏';
     Object.assign(deleteBtn.style, {
       background: 'none',
       border: 'none',
-      fontSize: '14px',
       cursor: 'pointer',
       padding: '4px',
-      opacity: '0.5',
-      transition: 'opacity 0.2s'
+      opacity: '0.4',
+      transition: 'opacity 0.2s',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      color: theme.tooltipTextColor
     });
     deleteBtn.addEventListener('mouseenter', () => {
       deleteBtn.style.opacity = '1';
     });
     deleteBtn.addEventListener('mouseleave', () => {
-      deleteBtn.style.opacity = '0.5';
+      deleteBtn.style.opacity = '0.4';
     });
     deleteBtn.addEventListener('click', async (e) => {
       e.stopPropagation();
@@ -694,11 +693,22 @@ export class RightSideTimelinejump {
       }
     });
     
+    const siteTag = document.createElement('span');
+    siteTag.textContent = conv.siteName;
+    Object.assign(siteTag.style, {
+      fontSize: '11px',
+      padding: '3px 8px',
+      backgroundColor: theme.activeColor,
+      color: '#fff',
+      borderRadius: '4px',
+      fontWeight: '500'
+    });
+    
     titleRow.appendChild(expandIcon);
     titleRow.appendChild(titleText);
     titleRow.appendChild(editBtn);
-    titleRow.appendChild(siteTag);
     titleRow.appendChild(deleteBtn);
+    titleRow.appendChild(siteTag);
     
     // 子项容器（默认隐藏）
     const subItems = document.createElement('div');
@@ -737,7 +747,8 @@ export class RightSideTimelinejump {
         flex: '1',
         overflow: 'hidden',
         textOverflow: 'ellipsis',
-        whiteSpace: 'nowrap'
+        whiteSpace: 'nowrap',
+        cursor: 'pointer'
       });
       // 截取文本，确保一行显示
       const displayText = subItem.promptText.length > 50 
@@ -745,20 +756,22 @@ export class RightSideTimelinejump {
         : subItem.promptText;
       textSpan.textContent = displayText;
       
-      // 删除子项按钮
+      // 删除子项按钮（简笔画 X 图标）
       const subDeleteBtn = document.createElement('button');
-      subDeleteBtn.innerHTML = '✕';
+      subDeleteBtn.innerHTML = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>`;
       subDeleteBtn.title = '删除此子项';
       Object.assign(subDeleteBtn.style, {
         background: 'none',
         border: 'none',
-        fontSize: '12px',
         cursor: 'pointer',
         padding: '2px 4px',
         opacity: '0.4',
         transition: 'opacity 0.2s',
         color: theme.tooltipTextColor,
-        flexShrink: '0'
+        flexShrink: '0',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center'
       });
       subDeleteBtn.addEventListener('mouseenter', () => {
         subDeleteBtn.style.opacity = '1';
@@ -802,15 +815,15 @@ export class RightSideTimelinejump {
       subItems.appendChild(subItemEl);
     });
     
-    // 展开/折叠逻辑
+    // 展开/折叠逻辑 - 只有点击展开图标才触发
     let isExpanded = false;
-    titleRow.addEventListener('click', () => {
+    expandIcon.style.cursor = 'pointer';
+    expandIcon.addEventListener('click', (e) => {
+      e.stopPropagation();
       isExpanded = !isExpanded;
       subItems.style.display = isExpanded ? 'block' : 'none';
       expandIcon.style.transform = isExpanded ? 'rotate(90deg)' : 'rotate(0deg)';
     });
-    
-    // 移除了标题行双击跳转（与编辑冲突），用户可通过点击子项跳转
     
     item.appendChild(titleRow);
     item.appendChild(subItems);
