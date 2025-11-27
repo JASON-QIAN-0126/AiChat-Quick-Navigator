@@ -24,6 +24,7 @@ async function getSettings() {
     'enable_claude', 
     'enable_gemini',
     'enable_deepseek',
+    'enable_grok',
     'ui_theme'
   ]);
   return cachedSettings;
@@ -344,6 +345,8 @@ async function init() {
         isEnabled = settings.enable_gemini !== false;
     } else if (adapter.name === 'DeepSeek') {
         isEnabled = settings.enable_deepseek !== false;
+    } else if (adapter.name === 'Grok') {
+        isEnabled = settings.enable_grok !== false;
     }
 
     // console.log('[LLM-Nav] Adapter enabled:', isEnabled);
