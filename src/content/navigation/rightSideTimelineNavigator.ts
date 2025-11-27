@@ -136,14 +136,59 @@ export class RightSideTimelinejump {
     this.currentUrl = window.location.href;
     this.pinnedNodes = await PinnedStore.loadPinned(id);
     
-    // 检查是否已收藏
-    this.isFavorited = await FavoriteStore.isFavorited(id);
+    // 检查是否已收藏，或者有被标记的节点（自动点亮）
+    const isExplicitlyFavorited = await FavoriteStore.isFavorited(id);
+    const hasPinnedNodes = this.pinnedNodes.size > 0;
+    this.isFavorited = isExplicitlyFavorited || hasPinnedNodes;
+    
+    // 如果有标记节点但未收藏，自动创建收藏
+    if (hasPinnedNodes && !isExplicitlyFavorited) {
+      // 延迟自动收藏，等待 items 加载完成
+      setTimeout(() => this.autoFavoriteIfNeeded(), 500);
+    }
+    
     this.updateTopStarStyle();
     
     // 重新应用样式
     this.nodes.forEach((node, index) => {
       this.updateNodeStyle(node, index);
     });
+  }
+
+  /**
+   * 如果有标记节点但未收藏，自动创建收藏
+   */
+  private async autoFavoriteIfNeeded(): Promise<void> {
+    if (!this.conversationId || this.items.length === 0) return;
+    
+    const isExplicitlyFavorited = await FavoriteStore.isFavorited(this.conversationId);
+    if (isExplicitlyFavorited) return;
+    
+    if (this.pinnedNodes.size > 0) {
+      const pinnedItems: Array<{ index: number; promptText: string }> = [];
+      this.pinnedNodes.forEach(nodeId => {
+        const index = parseInt(nodeId);
+        if (this.items[index]) {
+          pinnedItems.push({
+            index,
+            promptText: this.items[index].promptText
+          });
+        }
+      });
+      
+      if (pinnedItems.length > 0) {
+        const chatTitle = this.items.length > 0 ? this.items[0].promptText : '未命名对话';
+        await FavoriteStore.favoriteConversation(
+          this.conversationId,
+          this.currentUrl,
+          this.siteName || 'Unknown',
+          chatTitle,
+          pinnedItems
+        );
+        this.isFavorited = true;
+        this.updateTopStarStyle();
+      }
+    }
   }
 
   /**
@@ -205,16 +250,16 @@ export class RightSideTimelinejump {
     
     Object.assign(button.style, {
       position: 'absolute',
-      bottom: '-30px',
+      bottom: '-35px',
       left: '50%',
       transform: 'translateX(-50%)',
-      width: '28px',
-      height: '24px',
+      width: '36px',
+      height: '28px',
       cursor: 'pointer',
       display: 'flex',
       alignItems: 'center',
       justifyContent: 'center',
-      fontSize: '12px',
+      fontSize: '16px',
       opacity: '0.5',
       transition: 'all 0.2s ease',
       zIndex: '10'
@@ -223,9 +268,9 @@ export class RightSideTimelinejump {
     // 三星重叠效果
     button.innerHTML = `
       <span style="position: relative;">
-        <span style="position: absolute; left: -4px; top: 0; opacity: 0.6;">★</span>
+        <span style="position: absolute; left: -6px; top: 0; opacity: 0.6;">★</span>
         <span style="position: relative; z-index: 1;">★</span>
-        <span style="position: absolute; left: 4px; top: 0; opacity: 0.6;">★</span>
+        <span style="position: absolute; left: 6px; top: 0; opacity: 0.6;">★</span>
       </span>
     `;
     button.title = '查看所有收藏';
@@ -367,9 +412,9 @@ export class RightSideTimelinejump {
       top: '50%',
       left: '50%',
       transform: 'translate(-50%, -50%)',
-      width: '520px',
+      width: '800px',
       maxWidth: '90vw',
-      maxHeight: '80vh',
+      maxHeight: '70vh',
       minHeight: '400px',
       backgroundColor: this.currentTheme.tooltipBackgroundColor,
       color: this.currentTheme.tooltipTextColor,
@@ -537,9 +582,42 @@ export class RightSideTimelinejump {
       fontWeight: '500'
     });
     
+    // 删除父项按钮
+    const deleteBtn = document.createElement('button');
+    deleteBtn.innerHTML = '🗑️';
+    deleteBtn.title = '删除此收藏';
+    Object.assign(deleteBtn.style, {
+      background: 'none',
+      border: 'none',
+      fontSize: '14px',
+      cursor: 'pointer',
+      padding: '4px',
+      opacity: '0.5',
+      transition: 'opacity 0.2s'
+    });
+    deleteBtn.addEventListener('mouseenter', () => {
+      deleteBtn.style.opacity = '1';
+    });
+    deleteBtn.addEventListener('mouseleave', () => {
+      deleteBtn.style.opacity = '0.5';
+    });
+    deleteBtn.addEventListener('click', async (e) => {
+      e.stopPropagation();
+      if (confirm('确定要删除这个收藏吗？')) {
+        await FavoriteStore.unfavoriteConversation(conv.conversationId);
+        item.remove();
+        // 如果删除的是当前对话，更新星星状态
+        if (this.conversationId === conv.conversationId) {
+          this.isFavorited = false;
+          this.updateTopStarStyle();
+        }
+      }
+    });
+    
     titleRow.appendChild(expandIcon);
     titleRow.appendChild(titleText);
     titleRow.appendChild(siteTag);
+    titleRow.appendChild(deleteBtn);
     
     // 子项容器（默认隐藏）
     const subItems = document.createElement('div');
@@ -558,25 +636,72 @@ export class RightSideTimelinejump {
         : 'rgba(0,0,0,0.06)';
       
       Object.assign(subItemEl.style, {
+        display: 'flex',
+        alignItems: 'center',
+        gap: '8px',
         padding: '10px 14px',
         marginTop: '6px',
         backgroundColor: subItemBgColor,
         borderRadius: '6px',
         cursor: 'pointer',
         fontSize: '13px',
-        overflow: 'hidden',
-        textOverflow: 'ellipsis',
-        whiteSpace: 'nowrap',
         transition: 'all 0.2s',
         color: theme.tooltipTextColor,
         borderLeft: `3px solid ${theme.pinnedColor}`
       });
       
+      // 文本内容
+      const textSpan = document.createElement('span');
+      Object.assign(textSpan.style, {
+        flex: '1',
+        overflow: 'hidden',
+        textOverflow: 'ellipsis',
+        whiteSpace: 'nowrap'
+      });
       // 截取文本，确保一行显示
       const displayText = subItem.promptText.length > 50 
         ? subItem.promptText.substring(0, 50) + '...'
         : subItem.promptText;
-      subItemEl.textContent = displayText;
+      textSpan.textContent = displayText;
+      
+      // 删除子项按钮
+      const subDeleteBtn = document.createElement('button');
+      subDeleteBtn.innerHTML = '✕';
+      subDeleteBtn.title = '删除此子项';
+      Object.assign(subDeleteBtn.style, {
+        background: 'none',
+        border: 'none',
+        fontSize: '12px',
+        cursor: 'pointer',
+        padding: '2px 4px',
+        opacity: '0.4',
+        transition: 'opacity 0.2s',
+        color: theme.tooltipTextColor,
+        flexShrink: '0'
+      });
+      subDeleteBtn.addEventListener('mouseenter', () => {
+        subDeleteBtn.style.opacity = '1';
+      });
+      subDeleteBtn.addEventListener('mouseleave', () => {
+        subDeleteBtn.style.opacity = '0.4';
+      });
+      subDeleteBtn.addEventListener('click', async (e) => {
+        e.stopPropagation();
+        await FavoriteStore.removeItem(conv.conversationId, subItem.nodeIndex);
+        subItemEl.remove();
+        // 检查是否还有子项，如果没有了则移除整个父项
+        if (subItems.children.length === 0) {
+          item.remove();
+          // 如果删除的是当前对话，更新星星状态
+          if (this.conversationId === conv.conversationId) {
+            this.isFavorited = false;
+            this.updateTopStarStyle();
+          }
+        }
+      });
+      
+      subItemEl.appendChild(textSpan);
+      subItemEl.appendChild(subDeleteBtn);
       
       subItemEl.addEventListener('mouseenter', () => {
         subItemEl.style.backgroundColor = subItemHoverBgColor;
@@ -587,7 +712,8 @@ export class RightSideTimelinejump {
         subItemEl.style.transform = 'translateX(0)';
       });
       
-      subItemEl.addEventListener('click', (e) => {
+      // 点击文本部分跳转
+      textSpan.addEventListener('click', (e) => {
         e.stopPropagation();
         this.navigateToFavorite(conv, subItem.nodeIndex);
       });
